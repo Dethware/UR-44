@@ -38,11 +38,11 @@ u16 → 3 bytes `(v>>14)&3, (v>>7)&7F, v&7F`; u32 → 5 bytes (top group 4 bits)
 ## Parameter model
 
 memapi holds a table of 177 descriptors (`PTR_DAT_10022118`, ids 0x00–0xB0) with
-name, group mask, min, max and default. Dump: `docs/memapi_param_table.txt`
-(produced by `tools/dump_memapi_params.py`).
+name, group mask, min, max and default. Dump: `docs/data/memapi_param_table.txt`
+(produced by `re/gen_params.py`).
 
 **Confirmed: `a` = table id, `b` = instance index.** See the 2-D read sweep in
-`docs/scan2d.txt` (rows = id, columns = index 0..11). Instance counts observed:
+`docs/data/scan2d.txt` (rows = id, columns = index 0..11). Instance counts observed:
 
 | Group | Ids | Valid indices |
 |---|---|---|
@@ -58,14 +58,9 @@ junk). Treat it as "invalid", not as data. A request whose reply arrives after t
 timeout desyncs a naive request/response loop. Match replies on the echoed (a, b)
 before trusting them (done in tools/ur44.py `wait_for`).
 
-## Key binaries (from TOOLS_for_UR44 V2.2.2)
+## Key binaries
 
-* `dspmixfx_ur44.exe` – Qt4 GUI.
-* `memapi_ur44.dll` – COM "MemAPI UR44", parameter model and SysEx encoder/decoder.
-* `ysusb_bulklib32/64.dll` – COM transport into the YSUSB driver.
-* `ur44_extension.dll`, `ysusb_aadm_extension.dll` – Cubase integration plugins.
-* `UR44_firmware_V212.exe` – statically linked Qt updater; firmware is embedded as Qt
-  resource `:/upd_ur44_boot_main_v212.bin`. It uses the same IUsbBulkPort.
+See [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md) for which vendor binary does what, and where in memapi each piece lives.
 
 ## Mix buses (manual + device state)
 
@@ -108,7 +103,7 @@ The `Ha*` instance index is the analog input pair: 0 = inputs 1/2, 1 = 3/4, 2 = 
 * The device keeps its mixer state across power cycles (confirmed by experiment). The manual says
   the current scene and the PHONES 2 source are saved when the [P] switch goes to standby. They are
   *not* saved if power is cut while the device is on.
-* The "default" column in `docs/memapi_param_table.txt` is the Windows software's reset/initial
+* The "default" column in `docs/data/memapi_param_table.txt` is the Windows software's reset/initial
   value, compiled into memapi. It has nothing to do with the device's stored state, and that is the
   only reliable source for defaults. Example: memapi's `HaInputGain` default is 1 and the manual's
   stated default for LINE 5/6 is -10 dBV, which suggests 1 = -10 dBV (still to be confirmed).
@@ -121,7 +116,7 @@ The `Ha*` instance index is the analog input pair: 0 = inputs 1/2, 1 = 3/4, 2 = 
 memapi has a per-parameter label table, `PTR_PTR_10025778[id] -> {char **labels, char *unit}`.
 The text shown for raw value v is `labels[v]` (FUN_1000ada0). The shared integer table at 0x10022438
 is the exception: it is indexed by `v - min`. The full extraction is in `tools/ur44_labels.json`,
-where `labels[0]` is the label of `min`, produced by `tools/dump_memapi_labels.py`.
+where `labels[0]` is the label of `min`, produced by `re/dump_memapi_labels.py`.
 
 | Kind | Raw | Display |
 |---|---|---|

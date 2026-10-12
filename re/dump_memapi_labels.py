@@ -3,7 +3,9 @@
 
 memapi keeps PTR_PTR_10025778[param_id] -> {char **labels, char *unit}; the display
 text of raw value v is labels[v] (FUN_1000ada0). Exception: the shared integer table
-at 0x10022438 is indexed by v - min. Writes JSON {id: {name, min, max, unit, labels}} (tools/ur44_labels.json); labels[0] is the label of min.
+at 0x10022438 is indexed by v - min. Writes JSON {id: {name, min, max, unit, labels}}; labels[0] is the label of min.
+
+Usage: dump_memapi_labels.py memapi_ur44.dll > tools/ur44_labels.json
 """
 import json
 import struct

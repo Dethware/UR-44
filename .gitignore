@@ -1,1 +1,6 @@
-__pycache__
+__pycache__/
+*.pyc
+
+# Proprietary Yamaha/Steinberg downloads, their extracted contents and decompilations.
+# Rebuild with re/extract_vendor.sh and re/ghidra/decompile_all.sh.
+/vendor/
