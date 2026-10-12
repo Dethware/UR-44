@@ -84,15 +84,23 @@ def resolve(param):
     return BY_ID[param]
 
 
-# Meter frame (44 values): (level, peak-hold) pairs for the first 10 meters, as mapped live.
-# The DAW and master meter sources follow PatchDawMeter / PatchMasterMeter. Values 20..43 are
-# not mapped yet. Scale: dB = value / 102.4 - 80 (8192 = 0 dBFS, 0 = -80 dB floor).
-METER_PAIRS = ["IN1", "IN2", "IN3", "IN4", "IN5", "IN6", "DAW-L", "DAW-R", "MST-L", "MST-R"]
+# Meter frame (44 values) = 22 (level, peak-hold) pairs. DAW/master sources follow PatchDawMeter /
+# PatchMasterMeter. Levels: dB = value / 102.4 - 80 (8192 = 0 dBFS, 0 = -80 dB floor).
+# GR* (channel strip gain reduction): value & 0x1FFF, 8191 = none, ~(8191 - v) / 102.4 dB reduction;
+# bit 15 set = no reduction. CS* = channel strip output, GTR-IN/OUT = guitar amp input/output.
+METER_PAIRS = ["IN1", "IN2", "IN3", "IN4", "IN5", "IN6", "DAW-L", "DAW-R", "MST-L", "MST-R",
+               "GR1", "GR2", "GR3", "GR4", "CS1", "CS2", "CS3", "CS4",
+               "GTR-IN-L", "GTR-IN-R", "GTR-OUT-L", "GTR-OUT-R"]
 
 
 def meter_db(v):
     """Meter value as dBFS text ('-inf' at the floor)."""
     return "-inf" if v <= 0 else f"{v / 102.4 - 80:.1f}"
+
+
+def gr_db(v):
+    """Channel strip gain-reduction meter value as dB of reduction (0.0 = none)."""
+    return f"{max(0, 8191 - (v & 0x1FFF)) / 102.4:.1f}"
 
 
 def label(param, value):
@@ -304,8 +312,10 @@ def main():
                     if a.raw or len(vals) != 44:
                         print(" ".join(f"{v:5d}" for v in vals), flush=True)
                     else:
-                        print("  ".join(f"{n} {meter_db(vals[2 * k]):>5}/{meter_db(vals[2 * k + 1]):>5}"
-                                        for k, n in enumerate(METER_PAIRS)), flush=True)
+                        print("  ".join(
+                            f"{n} {gr_db(vals[2 * k]):>5}/{gr_db(vals[2 * k + 1]):>5}" if n.startswith("GR")
+                            else f"{n} {meter_db(vals[2 * k]):>5}/{meter_db(vals[2 * k + 1]):>5}"
+                            for k, n in enumerate(METER_PAIRS)), flush=True)
         except KeyboardInterrupt:
             pass
         except BrokenPipeError:  # e.g. piped into head: silence the flush at exit too

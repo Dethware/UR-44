@@ -47,7 +47,7 @@ against the Windows builders. The host-side command numbers are `IModelService::
 | 2 / 7 | Bulk dump: send scene / morph table | `F0 43 00 3E <lenH> <lenL> 14 01 01 <n:u32> <data7> <cs> F7`, n = 1 scene, 2 morph table | static. **Overwrites device state** |
 | 0xb | Send version (host → device) | `F0 43 10 3E 14 00 01 00 <text, '\n'→00> F7` | static |
 | 0xd | Monitor-matrix control mode | `F0 43 10 3E 14 03 09 01 <mode:u8> F7` | static |
-| 0xe / 0xf | FX assign / unassign | `F0 43 10 3E 14 03 08 {01\|02} <value:u8> <idx:u16> <flag:u8> F7` (channel strip / guitar FX insert patching, MemAPI::SetFxPatch) | static |
+| 0xe / 0xf | FX assign / unassign | assign `F0 43 10 3E 14 03 08 01 <fx type> <ch:u16> <point> F7`, unassign `… 03 08 02 <fx type> <ch:u16> 00 F7`. fx type 0 = channel strip, 1 = guitar FX; point 0 = Pre, 1 = Post (MemAPI::SetFxPatch / ResetFxPatch). The device picks the strip and updates `ChFxIns*Patch` / `ChGtrFxIns*Patch` itself (no notification is sent; a get right after the assign may time out once) | **confirmed** (input 1, both types, Post; the full-state diff after unassign was identical) |
 
 ### Device → host
 
@@ -189,17 +189,19 @@ list in the JSON is only an approximation.
 
 ## Meter frame (live mapping)
 
-44 values per frame, mapped by playing into each source. The first 20 are **(level, peak-hold)
-pairs**; peak-hold keeps a peak for about 2 s:
+44 values per frame = 22 **(level, peak-hold) pairs**; peak-hold keeps a peak for about 2 s. 0–19 were
+mapped live; 20–43 come from the macOS FX editor plugins (`libChannelStrip_UR44.dylib`:
+`GR_INDEX` = {20,22,24,26}, `EQ_INDEX` = {28,30,32,34}; `libGA_Classics_*_UR44.dylib`:
+`Vcm*Editor::meterChanged` reads 36/38/40/42), then confirmed live with `re/probe_fx_assign.py`:
 
 | Values | Meter |
 |---|---|
 | 0–11 | Inputs 1–6 (pairs) |
 | 12–15 | DAW L, R. The source is `PatchDawMeter`: 0 = DAW 1/2, 1 = DAW 3/4 (**confirmed**) |
 | 16–19 | Master L, R. The source is `PatchMasterMeter`: 0 = MIXBUS 1, 1 = MIXBUS 2 (**confirmed**). It follows the master fader and mix membership (an input switched off in the mix doesn't show) |
-| 20–23 | constant 40959 (0x9FFF) here. Unknown; maybe channel-strip gain reduction (4 strips) |
-| 24–27 | constant 3903 here. Unknown |
-| 28–43 | always 0 here. Unknown |
+| 20–27 | Channel strip 1–4 **compressor gain reduction** (pairs). Use `v & 0x1FFF`: 8191 = no reduction, lower = more; ≈ (8191 − v) / 102.4 dB. Bit 15 set (0x9FFF) = no reduction (idle). **Confirmed**: strip on input 1 with drive 10 / ratio ∞ read 0x1DF3–0x1F68 (≈ 1.5–5 dB GR). Unassigned strips hold stale values (3–4 read 0x0F3F before the probes, 0 after), so ignore GR for strips not in use |
+| 28–35 | Channel strip 1–4 **output level** (pairs; a stereo-linked strip pair also reads the next index). **Confirmed** live: follows the strip output (input + drive/makeup) |
+| 36–43 | **Guitar amp**: 36/38 = amp input L/R (equal to the input meter), 40/42 = amp output L/R (pairs). **Confirmed** live |
 
 Scale: **dB = value / 102.4 − 80**, i.e. 0 = −80 dB (floor) and 8192 = 0 dBFS.
 * Slope: Mix 1 master 103 → 80 (−5.75 dB) moved the master peak by 589 units (102.4/dB).

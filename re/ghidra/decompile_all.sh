@@ -27,6 +27,11 @@ MACMEM="$E/tools_v230_mac/dspMixFxUR44/dspMixFx_UR44.app/Contents/PlugIns/MemAPI
 if [ -f "$MACMEM" ]; then
   llvm-lipo -thin x86_64 "$MACMEM" -output "$PROJ/MemAPI_UR44_x86_64"
   run memapi_mac "$PROJ/MemAPI_UR44_x86_64" &
+  # FX editor plugins (symbols; their meterChanged() reveal the meter frame layout)
+  for fx in ChannelStrip GA_Classics_CLEAN RevHall; do
+    llvm-lipo -thin x86_64 "$(dirname "$MACMEM")/../../../fx/lib${fx}_UR44.dylib" -output "$PROJ/fx_$fx"
+    run "mac_fx_$fx" "$PROJ/fx_$fx" &
+  done
 fi
 wait
 # the big ones (several minutes each)
