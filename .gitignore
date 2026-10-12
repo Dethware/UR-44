@@ -4,3 +4,10 @@ __pycache__/
 # Proprietary Yamaha/Steinberg downloads, their extracted contents and decompilations.
 # Rebuild with re/extract_vendor.sh and re/ghidra/decompile_all.sh.
 /vendor/
+
+# Build output
+/build/
+
+# KDevelop
+.kdev4/
+*.kdev4
