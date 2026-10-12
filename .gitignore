@@ -11,3 +11,5 @@ __pycache__/
 # KDevelop
 .kdev4/
 *.kdev4
+# GUI build output
+/gui/build/

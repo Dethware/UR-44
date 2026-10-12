@@ -1,0 +1,30 @@
+UR44 Control
+------------
+
+Qt6 Widgets application for configuring the Steinberg UR44's internal DSP mixer.
+The protocol is described in ../docs/PROTOCOL.md; ../tools/ur44.py is the reference client.
+
+You need Qt6 and CMake 3.16 or higher.
+
+-- Build instructions --
+
+cd gui
+cmake -B build
+cmake --build build
+ctest --test-dir build
+
+build/src/application/ur44-control
+
+
+-- Layout --
+
+src/shared        generic code (JSON serialization, file system helpers), shared with other projects
+src/shared_ui     generic UI code, shared with other projects
+src/application   the application: main window and settings
+tests             Qt Test unit tests
+
+
+-- Tutorials and resources --
+
+Qt online docs
+https://doc.qt.io/

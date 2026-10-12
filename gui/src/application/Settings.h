@@ -1,0 +1,53 @@
+#pragma once
+
+#include <QJsonObject>
+#include <QString>
+#include <QTimer>
+
+/*
+ * Application settings, stored as JSON (see JsonSerialization.h).
+ *
+ * Change the members directly, then call scheduleSave(). Saving is throttled: the first change starts a timer, and
+ * everything changed until it fires is written at once. This keeps the number of writes bounded even if values
+ * change constantly (like window geometry while resizing). Pending changes are written on destruction.
+ */
+struct Settings
+{
+    static constexpr int SAVE_DELAY_MS = 1000;
+
+    Settings();
+    ~Settings();
+    Settings(const Settings&) = delete;
+    Settings& operator=(const Settings&) = delete;
+
+    /// Sets the file used by load() and save()
+    void setPath(const QString& path);
+
+    /// Loads settings from the file. Missing or invalid values keep their defaults.
+    /// Returns false (and leaves the settings untouched) if the file can't be read or parsed.
+    bool load();
+
+    /// Writes the settings to the file now.
+    bool save();
+
+    /// Writes the settings to the file within SAVE_DELAY_MS.
+    void scheduleSave();
+
+    /// Writes the settings now, if there's a scheduled save.
+    void flush();
+
+    /// ALSA rawmidi port of the UR44's control interface (its second MIDI port, e.g. "hw:1,0,1").
+    /// Empty means auto-detect.
+    QString midiPort;
+
+    QJsonObject extra;
+
+    template<typename S> void serialize(S& fp)
+    {
+        fp.property("midi_port", midiPort);
+    }
+
+private:
+    QString m_path;
+    QTimer m_saveTimer;
+};
