@@ -6,22 +6,34 @@ tricks that saved time. Keep this updated as new pieces get decoded.
 ## Vendor material (not in git)
 
 Everything from Yamaha/Steinberg lives in `vendor/` and is git-ignored, because it is proprietary.
+`re/download_vendor.py` fetches it from the official pages and verifies pinned SHA-256s:
+
+* Steinberg UR44 downloads: https://o.steinberg.net/en/support/downloads_hardware/downloads_ur44.html
+  (TOOLS for Win/Mac, firmware updaters, Basic FX Suite). Direct links on `download.steinberg.net`.
+* Steinberg driver page: https://www.steinberg.net/en/support/downloads_hardware/yamaha_steinberg_usb_driver.html
+  (redirects to `o.steinberg.net`; Windows drivers only up to V2.1.7).
+* Yamaha driver page (V2.1.11): https://asia-oceania.yamaha.com/en/support/updates/yamaha-steinberg-usb-driver-for-win.html.
+  The button sits behind a license checkbox that only exists in the page UI. The file itself is a plain GET
+  of `/en/download/files/<data-downloadid>/` (3232383 → data.yamaha.com → `YSUSB_V2111_Win.zip`).
+  The script fetches it only with `--accept-yamaha-license`.
 
 ```
-vendor/downloads/                original downloads (English docs only)
+vendor/cache/                    downloaded zips
+vendor/downloads/                unpacked zips (English docs only; eLicenser excluded)
   TOOLS_for_UR44_V222_Win/       setup.exe (Inno Setup 5.5.7), manuals, release notes, OSS licenses
-  YSUSB_V2111_Win/               standalone driver V2.1.11 (Inno Setup 6.7, not extractable with innoextract 1.9)
   FirmwareUpdater_V212/          UR44_firmware_V212.exe + update guide/release notes
+  YSUSB_V2111_Win/               driver V2.1.11 (Inno Setup 6.7, not extractable with innoextract 1.9)
+  YSUSB_V217_Win/                (extra) driver V2.1.7, Inno Setup 6.1, extractable
+  FirmwareUpdater_V212-2_mac/    (extra) macOS updater .app (x86_64 Mach-O, Qt frameworks)
+  TOOLS_for_UR44_V230_Mac/       (extra, 670 MB) macOS TOOLS V2.3.0, newer than the Windows V2.2.2
 vendor/extracted/                built by re/extract_vendor.sh (SHA256SUMS inside)
   tools_v222/dspmixfx_x86/       dspMixFx GUI, memapi, Cubase extensions, Qt4 DLLs, factory scenes
   tools_v222/helpers_x64/        64-bit memapi + extensions
   tools_v222/ysusb_driver/{x86,x64}/   YSUSB driver bundled with TOOLS (sys/inf/cat, bulklib, ASIO, control panel)
+  ysusb_v217/                    standalone driver V2.1.7 (x64 sys, bulklib32/64, ASIO, control panel)
   firmware_v212/                 upd_ur44_boot_main_v212.bin (+ the updater's icon)
 vendor/analysis/ghidra/          full decompilations, built by re/ghidra/decompile_all.sh
 ```
-
-Translations of the manuals and the eLicenser installer were deleted. They are irrelevant, and
-can be re-downloaded from Steinberg if ever needed.
 
 ## Tooling
 
@@ -103,8 +115,10 @@ The updater embeds its files as an rcc v1 bundle (`re/extract_qrc_firmware.py`):
 * 0x64–0xA3: 4 × 16-byte segment descriptors. Not decoded; contains `…6400 6400…` and sizes like
   0x4000 / 0x2000 / 0x8000.
 * 0xA4: ARM exception vector table (`e59ff014` = `ldr pc,[pc,#0x14]`), with words stored big-endian.
-* The upload protocol is not known yet. It goes through IUsbBulkPort, so it probably uses the vendor
-  config's bulk endpoints, or SysEx; to be found in the updater decompile (`vendor/analysis/ghidra/fwupd.c`).
+* The upload protocol is not known yet. On Windows it goes through IUsbBulkPort. The **macOS updater links
+  IOKit but not CoreMIDI**, so the update goes over raw USB, most likely the vendor configuration's bulk
+  endpoints (config 2, IF4 EP 0x03/0x84) and not MIDI. That makes a libusb-based cross-platform updater
+  plausible. Details are to be found in the updater decompile (`vendor/analysis/ghidra/fwupd.c`) or in the Mac binary.
 
 ## Open items
 

@@ -19,7 +19,7 @@ No driver is needed.
 | `docs/REVERSE_ENGINEERING.md` | Vendor binaries, addresses, tooling, tricks, open items |
 | `docs/data/` | Raw evidence: descriptor dump, live address sweep, a state dump |
 | `re/` | Reproducible RE scripts: vendor extraction, generators, Ghidra runner, finders, sweep |
-| `vendor/` | (git-ignored) original downloads, extracted binaries, decompilations |
+| `vendor/` | (git-ignored) download cache, unpacked downloads, extracted binaries, decompilations |
 
 ## Quick start
 
@@ -36,7 +36,10 @@ The ALSA port defaults to `hw:0,0,1`; override it with `--port`.
 ## Rebuilding the generated files
 
 ```bash
-re/extract_vendor.sh                                     # needs vendor/downloads/ populated
+re/download_vendor.py                                    # TOOLS V2.2.2 + firmware updater (pinned SHA-256)
+re/download_vendor.py --only V2111 --accept-yamaha-license   # driver V2.1.11, behind Yamaha's license page
+re/download_vendor.py --group extra                      # optional: driver V2.1.7, macOS updater, macOS TOOLS V2.3.0
+re/extract_vendor.sh
 python3 -I re/gen_params.py vendor/extracted/tools_v222/dspmixfx_x86/memapi_ur44.dll
 python3 -I re/dump_memapi_labels.py vendor/extracted/tools_v222/dspmixfx_x86/memapi_ur44.dll > tools/ur44_labels.json
 re/ghidra/decompile_all.sh                               # optional, slow

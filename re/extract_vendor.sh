@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Rebuild vendor/extracted/ from the original Yamaha/Steinberg downloads in vendor/downloads/.
+# Rebuild vendor/extracted/ from the original Yamaha/Steinberg downloads in vendor/downloads/
+# (fetch those first with re/download_vendor.py).
 # Needs: innoextract (>= 1.9), cabextract, msitools is NOT needed (the cabs carry the payload).
 set -euo pipefail
 cd "$(dirname "$0")/.."
@@ -47,6 +48,15 @@ cp "$TMP"/YSUSB64/*.sys "$TMP"/YSUSB64/*.inf "$TMP"/YSUSB64/*.cat "$TMP"/YSUSB64
 
 # --- Firmware updater V2.12: firmware image is an embedded Qt resource ---
 python3 -I re/extract_qrc_firmware.py "$DL/FirmwareUpdater_V212/UR44_firmware_V212.exe" "$OUT/firmware_v212"
+
+# --- YSUSB V2.1.7 standalone driver (optional "extra" download; Inno Setup 6.1) ---
+if [ -f "$DL/YSUSB_V217_Win/setup.exe" ]; then
+  innoextract -s -d "$TMP/ysusb217" "$DL/YSUSB_V217_Win/setup.exe"
+  mkdir -p "$OUT/ysusb_v217"
+  # the payload is again an MSI + sibling cab; the cab has the files
+  for c in $(find "$TMP/ysusb217" -iname '*.cab'); do cabextract -q -d "$TMP/ysusb217_cab" "$c"; done
+  cp "$TMP"/ysusb217_cab/* "$OUT/ysusb_v217/"
+fi
 
 # --- YSUSB V2.1.11 standalone driver: Inno Setup 6.7, not supported by innoextract 1.9 ---
 echo "note: $DL/YSUSB_V2111_Win is Inno Setup 6.7; not extracted (needs newer innoextract)"
