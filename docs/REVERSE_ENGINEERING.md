@@ -123,19 +123,43 @@ length-prefixed PNG at data offset 0.
   endpoints (config 2, IF4 EP 0x03/0x84) and not MIDI. That makes a libusb-based cross-platform updater
   plausible. Details are to be found in the updater decompile (`vendor/analysis/ghidra/fwupd.c`) or in the Mac binary.
 
-## macOS TOOLS V2.3.0 (first look)
+## macOS TOOLS V2.3.0
 
 * The flat `.pkg` (xar, which `7z` can read) holds per-component `*.pkg/Payload` files (gzip + cpio). The
   relevant ones are `dspMixFxUR44`, `UR44Extension` and `ysusbAadmExtension`; the rest are FX plugins and presets.
-* `dspMixFx_UR44` is a universal binary (x86_64 + arm64), stripped, Qt 5/6. **There is no separate memapi:**
-  the parameter model is compiled in (the descriptor names like `ChSendMixBus1Level` are present). It
-  links IOKit and not CoreMIDI, so on macOS too the host talks raw USB. Worth diffing its parameter
-  table against Windows memapi 2.1.0 (V2.2.2) for anything new.
+* `dspMixFx_UR44` is a universal binary (x86_64 + arm64), stripped, Qt 5/6. It links IOKit and not
+  CoreMIDI, so on macOS the host also talks raw USB.
+* **The model is `PlugIns/MemAPI_UR44.bundle`: MemAPI V2.3.0 (build 23.0.6), universal, *with symbols*.**
+  This is the best RE target for anything not yet decoded. Useful names:
+  * `_item<ParamName>`: 177 descriptors, 0x38 bytes each (the same 9 int32 fields as Windows, then 64-bit pointers).
+  * `PJ::prm` (id → `{labels, unit}`), `PJ::faderLevelTable`, `PJ::panTable`, … and `prmTable::prmString`.
+  * `header_parameterChange` `F0 43 10 3E 14`, `header_parameterChangeRequest` `F0 43 30 3E 14`,
+    `header_bulkDumpRequest` `F0 43 20 3E 14`, **`header_bulkDump` `F0 43 00 3E 00 00 14`** (classic Yamaha bulk
+    with a byte count), `header` `01 01`.
+  * `METER_START` = `7F`, `METER_STOP` = `00`.
+  * `DATA_NAME_CURRENT_SCENE` "CurrentScene", `DATA_NAME_ALL` "All", `DATA_NAME_MORPH_TABLE`
+    "MorphingTable", `sbNameOfEndChunk` "END_CHUNK", `fileItemMemoryTbl_{AllData,CurrentScene}`.
+  * Classes: `MemAPI`, `CsmdModel`, `CsmdApi`, `CsmdFile`, `ParameterChange`, `CommandData`,
+    `CAsyncManager(IURMemAPI*, IMeterObserver*, IStatusObserver*)`, `MidiReceiveData`.
+* Decompiled with `re/ghidra/decompile_all.sh` (x86_64 slice → `vendor/analysis/ghidra/memapi_mac.c`; the
+  dump headers now use qualified names like `ParameterChange::convertStore`). `re/show_func.sh` prints
+  functions by name. `re/summarize_builders.py` reduces the inlined `std::vector` push code of the
+  SysEx builders to their byte sequences, which is how the command table in PROTOCOL.md was read.
+* Vtables resolve the COM-style interfaces: `MemAPI` (+0x20 GetPrm, +0x28 SetPrm, +0x50/+0x58 Get/SetSceneData,
+  +0x60/+0x68 Get/SetMorphData, +0xb8 SetAllData, +0xd0 GetCustomSceneData, +0xf0 SetFxPatch, …) and
+  `ModelService` (+0x18 RequestMeter, +0x30 StartMeter, +0x38 SendCommand(PJ_COMMAND, data, len), …).
+* **Comparison with Windows memapi 2.1.0** (`re/compare_mac_memapi.py`): all 177 descriptors are identical
+  (id, type, kind, group, min, max, default) and so are all display-label tables. The only differences
+  are three renames, which `tools/ur44_params.py` accepts as aliases:
+  `FxRevBus{1,2}Level` → `FxRevMixBus{1,2}Level` (0x4f/0x50), and the typo fix `GtrFxnCrunchHidMaxOut` →
+  `GtrFxCrunchHidMaxOut` (0x8a). So the Windows-derived tables hold for the newer software.
 
 ## Open items
 
-* Scene store/recall, "Initialize All", dump request / bulk dump format, the text-payload command.
-  Decode them before sending: they can overwrite stored scenes.
-* Level meters (which message carries them).
+* Bulk dump *payload* layout (scene memory map: `fileItemMemoryTbl_*`, `CsmdFile`). The framing is
+  decoded (PROTOCOL.md). Store / bulk-send overwrite device memory, so test a read-only dump request first.
+* Meaning of the SetPrm `03` flag variant, Store variant 2, monitor-matrix mode values.
+* Level meters: start/stop and the reply framing are decoded (PROTOCOL.md). Still to do: the order of
+  the N values and their scale (dspMixFx's meter widget).
 * `FxRevTime` exact formula; factory scene file format.
 * Firmware update protocol, for a cross-platform updater.

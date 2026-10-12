@@ -12,7 +12,7 @@ public class DumpAll extends GhidraScript {
       for (Function f : currentProgram.getFunctionManager().getFunctions(true)) {
         if (f.isExternal() || f.isThunk()) continue;
         DecompileResults r = d.decompileFunction(f, 60, monitor);
-        w.println("// ==== " + f.getName() + " @ " + f.getEntryPoint());
+        w.println("// ==== " + f.getName(true) + " @ " + f.getEntryPoint());
         if (r.decompileCompleted()) w.println(r.getDecompiledFunction().getC()); else w.println("// FAILED");
       }
     }

@@ -19,7 +19,9 @@ import time
 
 import json
 import os
+import signal
 
+from ur44_dump import decode as decode_dump
 from ur44_params import BY_ID, BY_NAME
 
 # Display labels extracted from memapi (tools/dump_memapi_labels.py); labels[0] is the label of `min`.
@@ -49,6 +51,16 @@ def dec(b):
     return v
 
 
+def unpack7(data):
+    """Bulk dump 7-bit decoding: groups of 7 low-bit bytes followed by one byte of their MSBs."""
+    out = bytearray()
+    for g in range(0, len(data) - len(data) % 8, 8):
+        msb = data[g + 7]
+        for k in range(7):
+            out.append(data[g + k] | ((msb << (k + 1)) & 0x80))
+    return bytes(out)
+
+
 def signed32(v):
     return v - (1 << 32) if v & 0x80000000 else v
 
@@ -72,12 +84,25 @@ def resolve(param):
     return BY_ID[param]
 
 
+# Meter frame (44 values): (level, peak-hold) pairs for the first 10 meters, as mapped live.
+# The DAW and master meter sources follow PatchDawMeter / PatchMasterMeter. Values 20..43 are
+# not mapped yet. Scale: dB = value / 102.4 - 80 (8192 = 0 dBFS, 0 = -80 dB floor).
+METER_PAIRS = ["IN1", "IN2", "IN3", "IN4", "IN5", "IN6", "DAW-L", "DAW-R", "MST-L", "MST-R"]
+
+
+def meter_db(v):
+    """Meter value as dBFS text ('-inf' at the floor)."""
+    return "-inf" if v <= 0 else f"{v / 102.4 - 80:.1f}"
+
+
 def label(param, value):
     """Human-readable text for a raw value, as dspMixFx shows it."""
     row = resolve(param)
     info = LABELS[row[0]]
     if value is None:
         return "?"
+    if isinstance(value, list):  # byte arrays in bulk dumps (morph system id/name) are text
+        return repr(bytes(value).split(b"\0")[0].decode("latin1"))
     if info["labels"] and row[3] <= value <= row[4]:
         text = info["labels"][value - row[3]]
     else:
@@ -100,11 +125,17 @@ class UR44:
             raise OSError(-r, f"snd_rawmidi_open({port}) failed")
         self.buf = bytearray()
         self.unsolicited = []  # messages received while waiting for something else
+        # The port is exclusive, so a meter stream still running belongs to a session that died
+        # without stopping it (e.g. killed by SIGTERM). Stop it before draining.
+        self.meters(False)
         self.flush()
 
-    def flush(self):
-        while self.recv(0.05) is not None:
+    def flush(self, max_time=0.5):
+        """Drop pending input. Time-bounded: a device left streaming meters never goes quiet."""
+        end = time.monotonic() + max_time
+        while time.monotonic() < end and self.recv(0.05) is not None:
             pass
+        self.buf.clear()
         self.unsolicited.clear()
 
     def send(self, msg):
@@ -146,10 +177,29 @@ class UR44:
                 return m
             self.unsolicited.append(m)
 
+    def meters(self, on):
+        self.send([0xF0, 0x43, 0x30, 0x3E, 0x14, 0x02, 0x02, 0x32, 0x7F if on else 0x00, 0xF7])
+
     def version(self):
         self.send([0xF0, 0x43, 0x30, 0x3E, 0x14, 0x00, 0x70, 0x02, 0xF7])
         r = self.wait_for(lambda m: m[5:8] == b"\x00\x70\x02")
         return r[8:-1].replace(b"\0", b" ").decode("ascii", "replace").split() if r else None
+
+    def request_dump(self, which=3, timeout=2.0):
+        """Bulk dump request (1 = CurrentScene, 3 = All); returns the unpacked payload bytes."""
+        self.send([0xF0, 0x43, 0x20, 0x3E, 0x14, 0x01, 0x01, *u32(which), 0xF7])
+        m = self.wait_for(lambda m: m[1:4] == b"\x43\x00\x3e" and len(m) > 16 and m[6] == 0x14, timeout)
+        if m is None:
+            return None
+        body, cs = m[7:-2], m[-2]
+        if ((m[4] << 7) | m[5]) != len(body) or (-sum(body) & 0x7F) != cs:
+            raise ValueError("bulk dump length/checksum mismatch")
+        return unpack7(m[14:-2])
+
+    def snapshot(self):
+        """Whole device state in one request: {param_id: [value per instance]}."""
+        raw = self.request_dump(3)
+        return None if raw is None else decode_dump(raw)[2]
 
     def get_raw(self, param, index=0, timeout=0.3, retries=1):
         match = lambda m: (p := parse_param_msg(m)) is not None and p[:2] == (param, index)
@@ -179,6 +229,10 @@ class UR44:
         self.set_raw(row[0], index, value)
 
 
+def _raise_interrupt(signum, frame):
+    raise KeyboardInterrupt
+
+
 def main():
     num = lambda x: int(x, 0)
     ap = argparse.ArgumentParser()
@@ -189,12 +243,15 @@ def main():
     g.add_argument("param"); g.add_argument("index", type=num, nargs="?", default=0)
     s = sp.add_parser("set", help="write a parameter (name or id), range-checked")
     s.add_argument("param"); s.add_argument("index", type=num); s.add_argument("value", type=num)
-    sp.add_parser("dump", help="read every known parameter instance")
+    dp = sp.add_parser("dump", help="read every known parameter instance (one bulk dump request)")
+    dp.add_argument("--slow", action="store_true", help="read parameter by parameter instead")
     mx = sp.add_parser("mix", help="show the routing of MIX 1 or MIX 2")
     mx.add_argument("bus", type=int, choices=[1, 2])
     ph = sp.add_parser("phones2", help="show or select the PHONES 2 source")
     ph.add_argument("bus", type=int, choices=[1, 2], nargs="?")
     sp.add_parser("monitor", help="print everything the device sends")
+    mt = sp.add_parser("meters", help="stream level meters in dBFS until Ctrl-C (level/peak-hold per meter)")
+    mt.add_argument("--raw", action="store_true", help="print all 44 raw values per frame")
     a = ap.parse_args()
 
     d = UR44(a.port)
@@ -208,9 +265,13 @@ def main():
         for m in d.unsolicited:
             print("unsolicited:", m.hex(" ").upper())
     elif a.cmd == "dump":
+        snap = None if a.slow else d.snapshot()
         for pid in sorted(BY_ID):
             row = BY_ID[pid]
-            vals = [d.get(pid, i) for i in range(row[6])]
+            if snap is not None and pid in snap:
+                vals = snap[pid][:row[6]]
+            else:
+                vals = [d.get(pid, i) for i in range(row[6])]
             print(f"0x{pid:02x} {row[1]:28s} " + " | ".join(label(pid, v) for v in vals))
     elif a.cmd == "mix":
         b = a.bus
@@ -229,6 +290,28 @@ def main():
         if a.bus:
             d.set("PatchAuxPhoneOutput", 0, a.bus - 1)
         print("PHONES 2 source:", label("PatchAuxPhoneOutput", d.get("PatchAuxPhoneOutput")))
+    elif a.cmd == "meters":
+        # make kill/hangup exit through the finally block, so the device stops streaming
+        for sig in (signal.SIGTERM, signal.SIGHUP):
+            signal.signal(sig, _raise_interrupt)
+        d.meters(True)
+        try:
+            while True:
+                m = d.recv(1.0)
+                if m and m[1:7] == b"\x43\x10\x3e\x14\x02\x02":
+                    body = m[7:-1]
+                    vals = [dec(body[i:i + 3]) for i in range(0, len(body) - 2, 3)]
+                    if a.raw or len(vals) != 44:
+                        print(" ".join(f"{v:5d}" for v in vals), flush=True)
+                    else:
+                        print("  ".join(f"{n} {meter_db(vals[2 * k]):>5}/{meter_db(vals[2 * k + 1]):>5}"
+                                        for k, n in enumerate(METER_PAIRS)), flush=True)
+        except KeyboardInterrupt:
+            pass
+        except BrokenPipeError:  # e.g. piped into head: silence the flush at exit too
+            sys.stdout = open(os.devnull, "w")
+        finally:
+            d.meters(False)
     elif a.cmd == "monitor":
         while True:
             m = d.recv(3600)

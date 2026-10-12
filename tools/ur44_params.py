@@ -87,23 +87,23 @@ PARAMS = [
     (0x50, 'FxRevBus2Level', 0x00400, 0, 127, 103, 1),
     (0x51, 'MorphSystemId', 0x40000, 0, 255, 0, 4),
     (0x52, 'MorphSystemName', 0x40000, 0, 255, 0, 4),
-    (0x53, 'MorphCompAttack', 0x20000, 57, 283, 57, 9),
-    (0x54, 'MorphCompRelease', 0x20000, 24, 300, 24, 9),
-    (0x55, 'MorphCompRatio', 0x20000, 0, 120, 0, 9),
-    (0x56, 'MorphCompKnee', 0x20000, 0, 2, 0, 9),
-    (0x57, 'MorphCompThreshOfst', 0x20000, 0, 200, 0, 9),
-    (0x58, 'MorphCompMakeupOfst', 0x20000, 0, 200, 0, 9),
-    (0x59, 'MorphCompScFreq', 0x20000, 4, 124, 4, 9),
-    (0x5a, 'MorphCompScGain', 0x20000, 0, 360, 180, 9),
-    (0x5b, 'MorphCompScQual', 0x20000, 0, 60, 0, 9),
-    (0x5c, 'MorphEqHsvFreq', 0x20000, 60, 124, 60, 9),
-    (0x5d, 'MorphEqHsvGain', 0x20000, 0, 360, 180, 9),
-    (0x5e, 'MorphEqMidFreq', 0x20000, 4, 124, 4, 9),
-    (0x5f, 'MorphEqMidGain', 0x20000, 0, 360, 180, 9),
-    (0x60, 'MorphEqMidQual', 0x20000, 0, 60, 0, 9),
-    (0x61, 'MorphEqLsvFreq', 0x20000, 4, 72, 4, 9),
-    (0x62, 'MorphEqLsvGain', 0x20000, 0, 360, 180, 9),
-    (0x63, 'MorphEqPeqGain', 0x20000, 0, 360, 180, 9),
+    (0x53, 'MorphCompAttack', 0x20000, 57, 283, 57, 36),
+    (0x54, 'MorphCompRelease', 0x20000, 24, 300, 24, 36),
+    (0x55, 'MorphCompRatio', 0x20000, 0, 120, 0, 36),
+    (0x56, 'MorphCompKnee', 0x20000, 0, 2, 0, 36),
+    (0x57, 'MorphCompThreshOfst', 0x20000, 0, 200, 0, 36),
+    (0x58, 'MorphCompMakeupOfst', 0x20000, 0, 200, 0, 36),
+    (0x59, 'MorphCompScFreq', 0x20000, 4, 124, 4, 36),
+    (0x5a, 'MorphCompScGain', 0x20000, 0, 360, 180, 36),
+    (0x5b, 'MorphCompScQual', 0x20000, 0, 60, 0, 36),
+    (0x5c, 'MorphEqHsvFreq', 0x20000, 60, 124, 60, 36),
+    (0x5d, 'MorphEqHsvGain', 0x20000, 0, 360, 180, 36),
+    (0x5e, 'MorphEqMidFreq', 0x20000, 4, 124, 4, 36),
+    (0x5f, 'MorphEqMidGain', 0x20000, 0, 360, 180, 36),
+    (0x60, 'MorphEqMidQual', 0x20000, 0, 60, 0, 36),
+    (0x61, 'MorphEqLsvFreq', 0x20000, 4, 72, 4, 36),
+    (0x62, 'MorphEqLsvGain', 0x20000, 0, 360, 180, 36),
+    (0x63, 'MorphEqPeqGain', 0x20000, 0, 360, 180, 36),
     (0x64, 'PatchLoopbackMode', 0x01000, 0, 1, 0, 1),
     (0x65, 'GtrFxBypass', 0x04000, 0, 1, 0, 1),
     (0x66, 'GtrFxType', 0x04000, 0, 3, 0, 1),
@@ -183,5 +183,10 @@ PARAMS = [
     (0xb0, 'ChGtrFxInsPostPatch', 0x00001, 0, 1, 0, 6),
 ]
 
+# Names used by macOS MemAPI 2.3.0 where they differ from Windows memapi 2.1.0 (same ids)
+ALIASES = {'FxRevMixBus1Level': 'FxRevBus1Level', 'FxRevMixBus2Level': 'FxRevBus2Level',
+           'GtrFxCrunchHidMaxOut': 'GtrFxnCrunchHidMaxOut'}
+
 BY_NAME = {p[1]: p for p in PARAMS}
+BY_NAME.update({a: BY_NAME[n] for a, n in ALIASES.items()})
 BY_ID = {p[0]: p for p in PARAMS}

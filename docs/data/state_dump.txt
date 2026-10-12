@@ -7,7 +7,7 @@
 0x06 ChFxInsPostPatch             no fix | no fix | no fix | no fix | no fix | no fix
 0x07 ChSendMixBus1SoloOnf         Off | Off | Off | Off | Off | Off
 0x08 ChSendMixBus2SoloOnf         Off | Off | Off | Off | Off | Off
-0x09 ChSendMixBus1Onf             Off | Off | Off | Off | Off | Off
+0x09 ChSendMixBus1Onf             Off | On | On | On | On | On
 0x0a ChSendMixBus2Onf             On | On | On | On | On | On
 0x0b ChSendFxBusOnf               On | On | On | On | On | On
 0x0c ChSendMixBus1Level           6.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB
@@ -32,7 +32,7 @@
 0x1f MasterMixBus2Level           0.00 dB
 0x20 MasterMixBus1Bal             C
 0x21 MasterMixBus2Bal             C
-0x22 PatchAuxPhoneOutput          MIX 2 L/R
+0x22 PatchAuxPhoneOutput          MIX 1 L/R
 0x23 PatchDawMeter                DAW 1/2
 0x24 PatchMasterMeter             MIXBUS 1
 0x25 PatchFxSend                  MIXBUS 1
@@ -79,25 +79,25 @@
 0x4e FxRevMixBus2Onf              On
 0x4f FxRevBus1Level               0.00 dB
 0x50 FxRevBus2Level               0.00 dB
-0x51 MorphSystemId                48 | 48 | 48 | 48
-0x52 MorphSystemName              48 | 48 | 48 | 48
-0x53 MorphCompAttack              4.122 ms | 2.333 ms | 1.360 ms | 3.767 ms | 10.43 ms | 6.656 ms | 4.247 ms | 0.950 ms | 0.287 ms
-0x54 MorphCompRelease             92.0 ms | 110.8 ms | 133.4 ms | 61.3 ms | 28.6 ms | 25.4 ms | 22.6 ms | 45.9 ms | 52.6 ms
-0x55 MorphCompRatio               2.50 | 3.25 | 4.00 | 5.60 | 10.0 | 5.60 | 4.00 | 12.0 | 20.0
-0x56 MorphCompKnee                Middle | Middle | Middle | Middle | Middle | Soft | Soft | Middle | Hard
-0x57 MorphCompThreshOfst          0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | -2.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB
-0x58 MorphCompMakeupOfst          0.350 | 0.350 | 0.470 | 0.320 | 0.280 | 0.320 | 0.400 | 0.350 | 0.320
-0x59 MorphCompScFreq              90.0 Hz | 280.0 Hz | 950.0 Hz | 850.0 Hz | 800.0 Hz | 280.0 Hz | 100.0 Hz | 1.18k Hz | 15.0k Hz
-0x5a MorphCompScGain              -4.7 dB | 2.5 dB | 8.0 dB | -4.5 dB | -13.7 dB | -4.2 dB | 5.4 dB | 7.4 dB | 9.4 dB
-0x5b MorphCompScQual              1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00
-0x5c MorphEqHsvFreq               10.0k Hz | 12.5k Hz | 10.6k Hz | 14.0k Hz | 10.0k Hz | 10.6k Hz | 11.8k Hz | 12.5k Hz | 14.0k Hz
-0x5d MorphEqHsvGain               0.0 dB | -2.9 dB | -8.0 dB | -0.6 dB | 8.0 dB | 5.4 dB | 0.0 dB | 5.0 dB | 10.5 dB
-0x5e MorphEqMidFreq               1.00k Hz | 335.0 Hz | 950.0 Hz | 750.0 Hz | 800.0 Hz | 1.60k Hz | 4.00k Hz | 7.50k Hz | 9.50k Hz
-0x5f MorphEqMidGain               0.0 dB | 3.0 dB | 8.9 dB | 0.7 dB | -7.5 dB | -2.2 dB | -2.0 dB | 1.1 dB | 3.0 dB
-0x60 MorphEqMidQual               1.00 | 1.12 | 1.26 | 1.26 | 1.50 | 1.26 | 1.26 | 1.26 | 1.26
-0x61 MorphEqLsvFreq               100.0 Hz | 90.0 Hz | 80.0 Hz | 90.0 Hz | 95.0 Hz | 100.0 Hz | 125.0 Hz | 90.0 Hz | 30.0 Hz
-0x62 MorphEqLsvGain               0.0 dB | -2.8 dB | -9.1 dB | -1.7 dB | 6.5 dB | 7.0 dB | 7.2 dB | 2.8 dB | -3.6 dB
-0x63 MorphEqPeqGain               0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB
+0x51 MorphSystemId                '0001' | '0001' | '0001' | '0001'
+0x52 MorphSystemName              '01 Basic' | '01 Basic' | '01 Basic' | '01 Basic'
+0x53 MorphCompAttack              4.122 ms | 2.333 ms | 1.360 ms | 3.767 ms | 10.43 ms | 6.656 ms | 4.247 ms | 0.950 ms | 0.287 ms | 4.122 ms | 2.333 ms | 1.360 ms | 3.767 ms | 10.43 ms | 6.656 ms | 4.247 ms | 0.950 ms | 0.287 ms | 4.122 ms | 2.333 ms | 1.360 ms | 3.767 ms | 10.43 ms | 6.656 ms | 4.247 ms | 0.950 ms | 0.287 ms | 4.122 ms | 2.333 ms | 1.360 ms | 3.767 ms | 10.43 ms | 6.656 ms | 4.247 ms | 0.950 ms | 0.287 ms
+0x54 MorphCompRelease             92.0 ms | 110.8 ms | 133.4 ms | 61.3 ms | 28.6 ms | 25.4 ms | 22.6 ms | 45.9 ms | 52.6 ms | 92.0 ms | 110.8 ms | 133.4 ms | 61.3 ms | 28.6 ms | 25.4 ms | 22.6 ms | 45.9 ms | 52.6 ms | 92.0 ms | 110.8 ms | 133.4 ms | 61.3 ms | 28.6 ms | 25.4 ms | 22.6 ms | 45.9 ms | 52.6 ms | 92.0 ms | 110.8 ms | 133.4 ms | 61.3 ms | 28.6 ms | 25.4 ms | 22.6 ms | 45.9 ms | 52.6 ms
+0x55 MorphCompRatio               2.50 | 3.25 | 4.00 | 5.60 | 10.0 | 5.60 | 4.00 | 12.0 | 20.0 | 2.50 | 3.25 | 4.00 | 5.60 | 10.0 | 5.60 | 4.00 | 12.0 | 20.0 | 2.50 | 3.25 | 4.00 | 5.60 | 10.0 | 5.60 | 4.00 | 12.0 | 20.0 | 2.50 | 3.25 | 4.00 | 5.60 | 10.0 | 5.60 | 4.00 | 12.0 | 20.0
+0x56 MorphCompKnee                Middle | Middle | Middle | Middle | Middle | Soft | Soft | Middle | Hard | Middle | Middle | Middle | Middle | Middle | Soft | Soft | Middle | Hard | Middle | Middle | Middle | Middle | Middle | Soft | Soft | Middle | Hard | Middle | Middle | Middle | Middle | Middle | Soft | Soft | Middle | Hard
+0x57 MorphCompThreshOfst          0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | -2.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | -2.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | -2.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | -2.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB
+0x58 MorphCompMakeupOfst          0.350 | 0.350 | 0.470 | 0.320 | 0.280 | 0.320 | 0.400 | 0.350 | 0.320 | 0.350 | 0.350 | 0.470 | 0.320 | 0.280 | 0.320 | 0.400 | 0.350 | 0.320 | 0.350 | 0.350 | 0.470 | 0.320 | 0.280 | 0.320 | 0.400 | 0.350 | 0.320 | 0.350 | 0.350 | 0.470 | 0.320 | 0.280 | 0.320 | 0.400 | 0.350 | 0.320
+0x59 MorphCompScFreq              90.0 Hz | 280.0 Hz | 950.0 Hz | 850.0 Hz | 800.0 Hz | 280.0 Hz | 100.0 Hz | 1.18k Hz | 15.0k Hz | 90.0 Hz | 280.0 Hz | 950.0 Hz | 850.0 Hz | 800.0 Hz | 280.0 Hz | 100.0 Hz | 1.18k Hz | 15.0k Hz | 90.0 Hz | 280.0 Hz | 950.0 Hz | 850.0 Hz | 800.0 Hz | 280.0 Hz | 100.0 Hz | 1.18k Hz | 15.0k Hz | 90.0 Hz | 280.0 Hz | 950.0 Hz | 850.0 Hz | 800.0 Hz | 280.0 Hz | 100.0 Hz | 1.18k Hz | 15.0k Hz
+0x5a MorphCompScGain              -4.7 dB | 2.5 dB | 8.0 dB | -4.5 dB | -13.7 dB | -4.2 dB | 5.4 dB | 7.4 dB | 9.4 dB | -4.7 dB | 2.5 dB | 8.0 dB | -4.5 dB | -13.7 dB | -4.2 dB | 5.4 dB | 7.4 dB | 9.4 dB | -4.7 dB | 2.5 dB | 8.0 dB | -4.5 dB | -13.7 dB | -4.2 dB | 5.4 dB | 7.4 dB | 9.4 dB | -4.7 dB | 2.5 dB | 8.0 dB | -4.5 dB | -13.7 dB | -4.2 dB | 5.4 dB | 7.4 dB | 9.4 dB
+0x5b MorphCompScQual              1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00
+0x5c MorphEqHsvFreq               10.0k Hz | 12.5k Hz | 10.6k Hz | 14.0k Hz | 10.0k Hz | 10.6k Hz | 11.8k Hz | 12.5k Hz | 14.0k Hz | 10.0k Hz | 12.5k Hz | 10.6k Hz | 14.0k Hz | 10.0k Hz | 10.6k Hz | 11.8k Hz | 12.5k Hz | 14.0k Hz | 10.0k Hz | 12.5k Hz | 10.6k Hz | 14.0k Hz | 10.0k Hz | 10.6k Hz | 11.8k Hz | 12.5k Hz | 14.0k Hz | 10.0k Hz | 12.5k Hz | 10.6k Hz | 14.0k Hz | 10.0k Hz | 10.6k Hz | 11.8k Hz | 12.5k Hz | 14.0k Hz
+0x5d MorphEqHsvGain               0.0 dB | -2.9 dB | -8.0 dB | -0.6 dB | 8.0 dB | 5.4 dB | 0.0 dB | 5.0 dB | 10.5 dB | 0.0 dB | -2.9 dB | -8.0 dB | -0.6 dB | 8.0 dB | 5.4 dB | 0.0 dB | 5.0 dB | 10.5 dB | 0.0 dB | -2.9 dB | -8.0 dB | -0.6 dB | 8.0 dB | 5.4 dB | 0.0 dB | 5.0 dB | 10.5 dB | 0.0 dB | -2.9 dB | -8.0 dB | -0.6 dB | 8.0 dB | 5.4 dB | 0.0 dB | 5.0 dB | 10.5 dB
+0x5e MorphEqMidFreq               1.00k Hz | 335.0 Hz | 950.0 Hz | 750.0 Hz | 800.0 Hz | 1.60k Hz | 4.00k Hz | 7.50k Hz | 9.50k Hz | 1.00k Hz | 335.0 Hz | 950.0 Hz | 750.0 Hz | 800.0 Hz | 1.60k Hz | 4.00k Hz | 7.50k Hz | 9.50k Hz | 1.00k Hz | 335.0 Hz | 950.0 Hz | 750.0 Hz | 800.0 Hz | 1.60k Hz | 4.00k Hz | 7.50k Hz | 9.50k Hz | 1.00k Hz | 335.0 Hz | 950.0 Hz | 750.0 Hz | 800.0 Hz | 1.60k Hz | 4.00k Hz | 7.50k Hz | 9.50k Hz
+0x5f MorphEqMidGain               0.0 dB | 3.0 dB | 8.9 dB | 0.7 dB | -7.5 dB | -2.2 dB | -2.0 dB | 1.1 dB | 3.0 dB | 0.0 dB | 3.0 dB | 8.9 dB | 0.7 dB | -7.5 dB | -2.2 dB | -2.0 dB | 1.1 dB | 3.0 dB | 0.0 dB | 3.0 dB | 8.9 dB | 0.7 dB | -7.5 dB | -2.2 dB | -2.0 dB | 1.1 dB | 3.0 dB | 0.0 dB | 3.0 dB | 8.9 dB | 0.7 dB | -7.5 dB | -2.2 dB | -2.0 dB | 1.1 dB | 3.0 dB
+0x60 MorphEqMidQual               1.00 | 1.12 | 1.26 | 1.26 | 1.50 | 1.26 | 1.26 | 1.26 | 1.26 | 1.00 | 1.12 | 1.26 | 1.26 | 1.50 | 1.26 | 1.26 | 1.26 | 1.26 | 1.00 | 1.12 | 1.26 | 1.26 | 1.50 | 1.26 | 1.26 | 1.26 | 1.26 | 1.00 | 1.12 | 1.26 | 1.26 | 1.50 | 1.26 | 1.26 | 1.26 | 1.26
+0x61 MorphEqLsvFreq               100.0 Hz | 90.0 Hz | 80.0 Hz | 90.0 Hz | 95.0 Hz | 100.0 Hz | 125.0 Hz | 90.0 Hz | 30.0 Hz | 100.0 Hz | 90.0 Hz | 80.0 Hz | 90.0 Hz | 95.0 Hz | 100.0 Hz | 125.0 Hz | 90.0 Hz | 30.0 Hz | 100.0 Hz | 90.0 Hz | 80.0 Hz | 90.0 Hz | 95.0 Hz | 100.0 Hz | 125.0 Hz | 90.0 Hz | 30.0 Hz | 100.0 Hz | 90.0 Hz | 80.0 Hz | 90.0 Hz | 95.0 Hz | 100.0 Hz | 125.0 Hz | 90.0 Hz | 30.0 Hz
+0x62 MorphEqLsvGain               0.0 dB | -2.8 dB | -9.1 dB | -1.7 dB | 6.5 dB | 7.0 dB | 7.2 dB | 2.8 dB | -3.6 dB | 0.0 dB | -2.8 dB | -9.1 dB | -1.7 dB | 6.5 dB | 7.0 dB | 7.2 dB | 2.8 dB | -3.6 dB | 0.0 dB | -2.8 dB | -9.1 dB | -1.7 dB | 6.5 dB | 7.0 dB | 7.2 dB | 2.8 dB | -3.6 dB | 0.0 dB | -2.8 dB | -9.1 dB | -1.7 dB | 6.5 dB | 7.0 dB | 7.2 dB | 2.8 dB | -3.6 dB
+0x63 MorphEqPeqGain               0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB
 0x64 PatchLoopbackMode            Off
 0x65 GtrFxBypass                  Off
 0x66 GtrFxType                    Clean

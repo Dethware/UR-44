@@ -7,7 +7,8 @@ memapi holds 177 parameter descriptors at PTR_DAT_10022118[id], 0x2c bytes each:
   +0x18 max  +0x1c min  +0x20 default (dspMixFx's reset value, not device state)
   +0x24 storage ptr          +0x28 name (char *)
 The wire parameter id == descriptor index. Instance counts are not in the descriptor in an
-obvious form; they come from a live read sweep (docs/data/scan2d.txt) and are encoded below.
+obvious form; they come from a live read sweep (docs/data/scan2d.txt) and the "All" bulk dump's
+format chunk (tools/ur44_dump.py), and are encoded below.
 
 Usage: gen_params.py memapi_ur44.dll  -> writes docs/data/memapi_param_table.txt, tools/ur44_params.py
 """
@@ -38,7 +39,7 @@ def instances(pid, name):
     if name.startswith("Fx") and not name.startswith("FxRev"):
         return 4          # channel strip DSP slots
     if 0x53 <= pid <= 0x63:
-        return 9          # morphing table points
+        return 36         # morphing table: 4 channel strips x 9 points (bulk dump format chunk)
     if name.startswith("MorphSystem"):
         return 4
     return 1
@@ -65,5 +66,9 @@ with open(os.path.join(ROOT, "tools/ur44_params.py"), "w") as f:
     for r in rows:
         f.write(f"    (0x{r['id']:02x}, {r['name']!r}, 0x{r['group']:05x}, {r['min']}, {r['max']}, "
                 f"{r['default']}, {r['n']}),\n")
-    f.write("]\n\nBY_NAME = {p[1]: p for p in PARAMS}\nBY_ID = {p[0]: p for p in PARAMS}\n")
+    f.write("]\n\n# Names used by macOS MemAPI 2.3.0 where they differ from Windows memapi 2.1.0 (same ids)\n"
+            "ALIASES = {'FxRevMixBus1Level': 'FxRevBus1Level', 'FxRevMixBus2Level': 'FxRevBus2Level',\n"
+            "           'GtrFxCrunchHidMaxOut': 'GtrFxnCrunchHidMaxOut'}\n\n"
+            "BY_NAME = {p[1]: p for p in PARAMS}\nBY_NAME.update({a: BY_NAME[n] for a, n in ALIASES.items()})\n"
+            "BY_ID = {p[0]: p for p in PARAMS}\n")
 print(f"{len(rows)} parameters")

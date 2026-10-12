@@ -22,6 +22,12 @@ run memapi   "$E/tools_v222/dspmixfx_x86/memapi_ur44.dll" &
 run bulklib  "$E/tools_v222/ysusb_driver/x86/ysusb_bulklib32.dll" &
 run aadm     "$E/tools_v222/dspmixfx_x86/ysusb_aadm_extension.dll" &
 run ext      "$E/tools_v222/dspmixfx_x86/ur44_extension.dll" &
+# macOS MemAPI 2.3.0 keeps its symbols; decompile the x86_64 slice of the universal binary
+MACMEM="$E/tools_v230_mac/dspMixFxUR44/dspMixFx_UR44.app/Contents/PlugIns/MemAPI_UR44.bundle/Contents/MacOS/MemAPI_UR44"
+if [ -f "$MACMEM" ]; then
+  llvm-lipo -thin x86_64 "$MACMEM" -output "$PROJ/MemAPI_UR44_x86_64"
+  run memapi_mac "$PROJ/MemAPI_UR44_x86_64" &
+fi
 wait
 # the big ones (several minutes each)
 run dspmixfx "$E/tools_v222/dspmixfx_x86/dspmixfx_ur44.exe" &
