@@ -31,7 +31,8 @@ vendor/extracted/                built by re/extract_vendor.sh (SHA256SUMS insid
   tools_v222/helpers_x64/        64-bit memapi + extensions
   tools_v222/ysusb_driver/{x86,x64}/   YSUSB driver bundled with TOOLS (sys/inf/cat, bulklib, ASIO, control panel)
   ysusb_v217/                    standalone driver V2.1.7 (x64 sys, bulklib32/64, ASIO, control panel)
-  firmware_v212/                 upd_ur44_boot_main_v212.bin (+ the updater's icon)
+  firmware_v212/                 upd_ur44_boot_main_v212.bin (identical in the Windows and macOS updaters)
+  tools_v230_mac/                (extra) dspMixFx 2.3.0 .app (universal x86_64+arm64), UR44/AADM Cubase extensions
 vendor/analysis/ghidra/          full decompilations, built by re/ghidra/decompile_all.sh
 ```
 
@@ -97,15 +98,17 @@ Image base 0x10000000; section VA == file offset + base, so `va - 0x10000000` is
 * **State persists on the device** (saved when [P] goes to standby). What you read is the last
   session's state, not factory defaults. Defaults come from memapi's descriptor table.
 
-## Qt resource extraction (firmware updater)
+## Firmware extraction (updaters)
 
-The updater embeds its files as an rcc v1 bundle (`re/extract_qrc_firmware.py`):
+Both updaters embed the image as a zlib-compressed Qt resource `:/upd_ur44_boot_main_v212.bin`.
+`re/extract_firmware.py` doesn't parse rcc: it scans for zlib streams that inflate to the `MMPFUPDD`
+magic, which works for both the Qt 4 Windows exe (stream at file 0x44ed0d) and the Qt 5/6 macOS
+Mach-O (0x2391d). Both yield the same image, SHA-256 `8a721750…2cd4`.
 
-* names table at file 0x4946a8: `u16 len, u32 hash, UTF-16BE name`. It holds `icon.png` and
-  `upd_ur44_boot_main_v212.bin`.
-* tree right after it: 14-byte BE entries. The firmware entry has flags=1, meaning zlib:
-  `u32 size, u32 uncompressed size, zlib stream`.
-* data section located via the length-prefixed PNG at data offset 0.
+For reference, the Windows exe uses rcc v1: the names table at 0x4946a8 (`u16 len, u32 hash,
+UTF-16BE name`: `icon.png`, `upd_ur44_boot_main_v212.bin`); 14-byte BE tree entries after it, with the
+firmware entry flagged zlib (`u32 size, u32 uncompressed size, stream`); and the data section found via the
+length-prefixed PNG at data offset 0.
 
 ## Firmware image (first look)
 
@@ -119,6 +122,15 @@ The updater embeds its files as an rcc v1 bundle (`re/extract_qrc_firmware.py`):
   IOKit but not CoreMIDI**, so the update goes over raw USB, most likely the vendor configuration's bulk
   endpoints (config 2, IF4 EP 0x03/0x84) and not MIDI. That makes a libusb-based cross-platform updater
   plausible. Details are to be found in the updater decompile (`vendor/analysis/ghidra/fwupd.c`) or in the Mac binary.
+
+## macOS TOOLS V2.3.0 (first look)
+
+* The flat `.pkg` (xar, which `7z` can read) holds per-component `*.pkg/Payload` files (gzip + cpio). The
+  relevant ones are `dspMixFxUR44`, `UR44Extension` and `ysusbAadmExtension`; the rest are FX plugins and presets.
+* `dspMixFx_UR44` is a universal binary (x86_64 + arm64), stripped, Qt 5/6. **There is no separate memapi:**
+  the parameter model is compiled in (the descriptor names like `ChSendMixBus1Level` are present). It
+  links IOKit and not CoreMIDI, so on macOS too the host talks raw USB. Worth diffing its parameter
+  table against Windows memapi 2.1.0 (V2.2.2) for anything new.
 
 ## Open items
 

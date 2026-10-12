@@ -57,10 +57,11 @@ MANIFEST = [
          sha256="8244bce3dd5fdbe17e4a0f7ddab003bfc2ff608edece85d77b27e13b479025cb", inner={}),
     dict(name="TOOLS for UR44 V2.3.0 (macOS, 670 MB)", group="extra",
          url=f"{SB}/UR44/Mac/2.3.0/TOOLS_for_UR44_V230_Mac.zip", dest="TOOLS_for_UR44_V230_Mac",
-         sha256=None, inner={}),
+         sha256="4976f9455ffd3004fae92eb662e2d141996e2a278cf359f474dc97f76217e65c", inner={},
+         exclude=["eLicenser/"]),
 ]
 
-TRANSLATION = re.compile(r"(_(de|es|fr|it|ja|jp|pt|zh|ko|ru)\.pdf$)|((^|/)(DE|ES|FR|IT|JA|JP|PT|ZH|KO|RU)_[^/]*\.pdf$)")
+TRANSLATION = re.compile(r"(_(de|es|fr|it|ja|jp|pt|zh|ko|ru)(-[a-z]{2})?\.pdf$)|((^|/)(DE|ES|FR|IT|JA|JP|PT|ZH|KO|RU)_[^/]*\.pdf$)", re.I)
 
 
 def sha256_file(path):

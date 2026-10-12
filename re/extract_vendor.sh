@@ -46,8 +46,28 @@ cp "$TMP/YSUSBCom/ysusb_bulklib32.dll" "$TMP/YSUSBCom/ysusb_asio32.dll" "$D/x86/
 cp "$TMP"/YSUSB32/*.sys "$TMP"/YSUSB32/*.inf "$TMP"/YSUSB32/*.cat "$TMP/YSUSB32/ysusb_cp.exe" "$D/x86/"
 cp "$TMP"/YSUSB64/*.sys "$TMP"/YSUSB64/*.inf "$TMP"/YSUSB64/*.cat "$TMP"/YSUSB64/*.dll "$TMP/YSUSB64/ysusb_cp.exe" "$D/x64/"
 
-# --- Firmware updater V2.12: firmware image is an embedded Qt resource ---
-python3 -I re/extract_qrc_firmware.py "$DL/FirmwareUpdater_V212/UR44_firmware_V212.exe" "$OUT/firmware_v212"
+# --- Firmware updater V2.12: firmware image is an embedded, zlib-compressed Qt resource ---
+python3 -I re/extract_firmware.py "$DL/FirmwareUpdater_V212/UR44_firmware_V212.exe" "$OUT/firmware_v212"
+# the macOS updater (optional "extra" download) embeds the identical image; extract it to cross-check
+MACFW="$DL/FirmwareUpdater_V212-2_mac/UR44_firmware_V212.app/Contents/MacOS/UR44_firmware_V212"
+if [ -f "$MACFW" ]; then
+  python3 -I re/extract_firmware.py "$MACFW" "$TMP/macfw"
+  cmp "$TMP/macfw/upd_ur44_boot_main_v212.bin" "$OUT/firmware_v212/upd_ur44_boot_main_v212.bin"
+fi
+
+# --- TOOLS for UR44 V2.3.0 for macOS (optional "extra" download): flat .pkg (xar) of gzip+cpio payloads ---
+MACPKG="$DL/TOOLS_for_UR44_V230_Mac/TOOLS for UR44 V2.3.0.pkg"
+if [ -f "$MACPKG" ]; then
+  M="$OUT/tools_v230_mac"
+  mkdir -p "$M"
+  for p in dspMixFxUR44 UR44Extension ysusbAadmExtension; do
+    7z x -y -o"$TMP/macpkg" "$MACPKG" "$p.pkg/Payload" > /dev/null
+    mkdir -p "$M/$p"
+    ( cd "$M/$p" && gzip -dc "$TMP/macpkg/$p.pkg/Payload" | cpio -idm --quiet )
+  done
+  # drop translated manuals bundled inside the app
+  find "$M" -path '*.lproj/UR44_OperationManual.pdf' ! -path '*English.lproj*' -delete
+fi
 
 # --- YSUSB V2.1.7 standalone driver (optional "extra" download; Inno Setup 6.1) ---
 if [ -f "$DL/YSUSB_V217_Win/setup.exe" ]; then
