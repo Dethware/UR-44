@@ -1,0 +1,177 @@
+0x00 ChPairOnf                    Off | Off | Off | Off | Off | Off
+0x01 ChFaderLinkOnf               On | On | On | On | On | On
+0x02 ChPhaseOnf                   Norma | Norma | Norma | Norma | Norma | Norma
+0x03 ChHpfOnf                     Off | Off | Off | Off | Off | Off
+0x04 ChHpfFreq                    80 Hz | 80 Hz | 80 Hz | 80 Hz | 80 Hz | 80 Hz
+0x05 ChFxInsPrePatch              no fix | no fix | no fix | no fix | no fix | no fix
+0x06 ChFxInsPostPatch             no fix | no fix | no fix | no fix | no fix | no fix
+0x07 ChSendMixBus1SoloOnf         Off | Off | Off | Off | Off | Off
+0x08 ChSendMixBus2SoloOnf         Off | Off | Off | Off | Off | Off
+0x09 ChSendMixBus1Onf             Off | Off | Off | Off | Off | Off
+0x0a ChSendMixBus2Onf             On | On | On | On | On | On
+0x0b ChSendFxBusOnf               On | On | On | On | On | On
+0x0c ChSendMixBus1Level           6.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB
+0x0d ChSendMixBus2Level           0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB
+0x0e ChSendFxBusLevel             -INF dB | -INF dB | -INF dB | -INF dB | -INF dB | -INF dB
+0x0f ChSendMixBus1Pan             C | C | C | C | C | C
+0x10 ChSendMixBus2Pan             C | C | C | C | C | C
+0x11 DawSendMixBus1SoloOnf        Off
+0x12 DawSendMixBus2SoloOnf        Off
+0x13 DawSendMixBus1Onf            On
+0x14 DawSendMixBus2Onf            On
+0x15 DawSendMixBus1Level          0.00 dB
+0x16 DawSendMixBus2Level          0.00 dB
+0x17 DawSendMixBus1Bal            C
+0x18 DawSendMixBus2Bal            C
+0x19 DawSendFxBusOnf              Off
+0x1a DawSendFxBusLevel            -INF dB
+0x1b DawSendFxBusBal              C
+0x1c MasterMixBus1Onf             On
+0x1d MasterMixBus2Onf             On
+0x1e MasterMixBus1Level           0.00 dB
+0x1f MasterMixBus2Level           0.00 dB
+0x20 MasterMixBus1Bal             C
+0x21 MasterMixBus2Bal             C
+0x22 PatchAuxPhoneOutput          MIX 2 L/R
+0x23 PatchDawMeter                DAW 1/2
+0x24 PatchMasterMeter             MIXBUS 1
+0x25 PatchFxSend                  MIXBUS 1
+0x26 SysFsCode                    48k Hz
+0x27 SysSoloOnf                   Off
+0x28 HaP48VOnf                    On | Off | Off
+0x29 HaInputGain                  +4dBu | +4dBu | -10dBV
+0x2a FxStereoLinkOnf              Off | Off | Off | Off
+0x2b FxCompBypass                 Off | Off | Off | Off
+0x2c FxCompDrive                  5.00 | 5.00 | 5.00 | 5.00
+0x2d FxCompAttack                 4.122 ms | 4.122 ms | 4.122 ms | 4.122 ms
+0x2e FxCompRelease                92.0 ms | 92.0 ms | 92.0 ms | 92.0 ms
+0x2f FxCompRatio                  2.50 | 2.50 | 2.50 | 2.50
+0x30 FxCompKnee                   Middle | Middle | Middle | Middle
+0x31 FxCompThreshOfst             0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB
+0x32 FxCompMakeupOfst             0.350 | 0.350 | 0.350 | 0.350
+0x33 FxCompScFreq                 90.0 Hz | 90.0 Hz | 90.0 Hz | 90.0 Hz
+0x34 FxCompScGain                 -4.7 dB | -4.7 dB | -4.7 dB | -4.7 dB
+0x35 FxCompScQual                 1.00 | 1.00 | 1.00 | 1.00
+0x36 FxMorphValue                 0 | 0 | 0 | 0
+0x37 FxEqBypass                   Off | Off | Off | Off
+0x38 FxEqHsvFreq                  10.0k Hz | 10.0k Hz | 10.0k Hz | 10.0k Hz
+0x39 FxEqHsvGain                  0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB
+0x3a FxEqMidFreq                  1.00k Hz | 1.00k Hz | 1.00k Hz | 1.00k Hz
+0x3b FxEqMidGain                  0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB
+0x3c FxEqMidQual                  1.00 | 1.00 | 1.00 | 1.00
+0x3d FxEqLsvFreq                  100.0 Hz | 100.0 Hz | 100.0 Hz | 100.0 Hz
+0x3e FxEqLsvGain                  0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB
+0x3f FxEqPeqGain                  0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB
+0x40 FxRevBypass                  Off
+0x41 FxRevType                    Hall
+0x42 FxRevTime                    2.6
+0x43 FxRevDiff                    10
+0x44 FxRevIniDly                  3.2 msec
+0x45 FxRevHpf                     32 Hz
+0x46 FxRevLpf                     6.3k Hz
+0x47 FxRevRoomSize                29
+0x48 FxRevHighRatio               0.8
+0x49 FxRevLowRatio                1.2
+0x4a FxRevDecay                   27
+0x4b FxRevBal                     100.0 %
+0x4c FxRevLowFreq                 800 Hz
+0x4d FxRevMixBus1Onf              On
+0x4e FxRevMixBus2Onf              On
+0x4f FxRevBus1Level               0.00 dB
+0x50 FxRevBus2Level               0.00 dB
+0x51 MorphSystemId                48 | 48 | 48 | 48
+0x52 MorphSystemName              48 | 48 | 48 | 48
+0x53 MorphCompAttack              4.122 ms | 2.333 ms | 1.360 ms | 3.767 ms | 10.43 ms | 6.656 ms | 4.247 ms | 0.950 ms | 0.287 ms
+0x54 MorphCompRelease             92.0 ms | 110.8 ms | 133.4 ms | 61.3 ms | 28.6 ms | 25.4 ms | 22.6 ms | 45.9 ms | 52.6 ms
+0x55 MorphCompRatio               2.50 | 3.25 | 4.00 | 5.60 | 10.0 | 5.60 | 4.00 | 12.0 | 20.0
+0x56 MorphCompKnee                Middle | Middle | Middle | Middle | Middle | Soft | Soft | Middle | Hard
+0x57 MorphCompThreshOfst          0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | -2.00 dB | 0.00 dB | 0.00 dB | 0.00 dB | 0.00 dB
+0x58 MorphCompMakeupOfst          0.350 | 0.350 | 0.470 | 0.320 | 0.280 | 0.320 | 0.400 | 0.350 | 0.320
+0x59 MorphCompScFreq              90.0 Hz | 280.0 Hz | 950.0 Hz | 850.0 Hz | 800.0 Hz | 280.0 Hz | 100.0 Hz | 1.18k Hz | 15.0k Hz
+0x5a MorphCompScGain              -4.7 dB | 2.5 dB | 8.0 dB | -4.5 dB | -13.7 dB | -4.2 dB | 5.4 dB | 7.4 dB | 9.4 dB
+0x5b MorphCompScQual              1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00 | 1.00
+0x5c MorphEqHsvFreq               10.0k Hz | 12.5k Hz | 10.6k Hz | 14.0k Hz | 10.0k Hz | 10.6k Hz | 11.8k Hz | 12.5k Hz | 14.0k Hz
+0x5d MorphEqHsvGain               0.0 dB | -2.9 dB | -8.0 dB | -0.6 dB | 8.0 dB | 5.4 dB | 0.0 dB | 5.0 dB | 10.5 dB
+0x5e MorphEqMidFreq               1.00k Hz | 335.0 Hz | 950.0 Hz | 750.0 Hz | 800.0 Hz | 1.60k Hz | 4.00k Hz | 7.50k Hz | 9.50k Hz
+0x5f MorphEqMidGain               0.0 dB | 3.0 dB | 8.9 dB | 0.7 dB | -7.5 dB | -2.2 dB | -2.0 dB | 1.1 dB | 3.0 dB
+0x60 MorphEqMidQual               1.00 | 1.12 | 1.26 | 1.26 | 1.50 | 1.26 | 1.26 | 1.26 | 1.26
+0x61 MorphEqLsvFreq               100.0 Hz | 90.0 Hz | 80.0 Hz | 90.0 Hz | 95.0 Hz | 100.0 Hz | 125.0 Hz | 90.0 Hz | 30.0 Hz
+0x62 MorphEqLsvGain               0.0 dB | -2.8 dB | -9.1 dB | -1.7 dB | 6.5 dB | 7.0 dB | 7.2 dB | 2.8 dB | -3.6 dB
+0x63 MorphEqPeqGain               0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB | 0.0 dB
+0x64 PatchLoopbackMode            Off
+0x65 GtrFxBypass                  Off
+0x66 GtrFxType                    Clean
+0x67 GtrFxCleanBlend              5.0
+0x68 GtrFxCleanVolume             1.9
+0x69 GtrFxCleanDistortion         Off
+0x6a GtrFxCleanBass               6.1
+0x6b GtrFxCleanMiddle             5.0
+0x6c GtrFxCleanTreble             4.0
+0x6d GtrFxCleanHiTreble           3.0
+0x6e GtrFxCleanUserParam07        0
+0x6f GtrFxCleanOutput             -11.9 dB
+0x70 GtrFxCleanUserParam09        0
+0x71 GtrFxCleanSpType             JC 2x12
+0x72 GtrFxCleanSpAir              2
+0x73 GtrFxCleanMicPosition        Center
+0x74 GtrFxCleanChorus             Off
+0x75 GtrFxCleanVibSpeed           5.0
+0x76 GtrFxCleanVibDepth           5.0
+0x77 GtrFxCleanHidInput           64
+0x78 GtrFxCleanHidMaxOut          64
+0x79 GtrFxCrunchType              Bright
+0x7a GtrFxCrunchVolume            4.6
+0x7b GtrFxCrunchUserParam02       0
+0x7c GtrFxCrunchBass              4.7
+0x7d GtrFxCrunchMiddle            7.0
+0x7e GtrFxCrunchTreble            5.3
+0x7f GtrFxCrunchPresence          2.8
+0x80 GtrFxCrunchUserParam07       0
+0x81 GtrFxCrunchOutput            -17.3 dB
+0x82 GtrFxCrunchUserParam09       0
+0x83 GtrFxCrunchSpType            AC 4x10
+0x84 GtrFxCrunchSpAir             2
+0x85 GtrFxCrunchMicPosition       Center
+0x86 GtrFxCrunchUserParam13       0
+0x87 GtrFxCrunchUserParam14       0
+0x88 GtrFxCrunchUserParam15       0
+0x89 GtrFxCrunchHidInput          64
+0x8a GtrFxnCrunchHidMaxOut        64
+0x8b GtrFxLeadSensitivity         High
+0x8c GtrFxLeadPreAmp              10.0
+0x8d GtrFxLeadUserParam02         0
+0x8e GtrFxLeadBass                6.6
+0x8f GtrFxLeadMiddle              8.0
+0x90 GtrFxLeadTreble              3.0
+0x91 GtrFxLeadPresence            2.9
+0x92 GtrFxLeadMaster              4.9
+0x93 GtrFxLeadOutput              -19.2 dB
+0x94 GtrFxLeadUserParam09         0
+0x95 GtrFxLeadSpType              BS 4x12
+0x96 GtrFxLeadSpAir               2
+0x97 GtrFxLeadMicPosition         Center
+0x98 GtrFxLeadUserParam13         0
+0x99 GtrFxLeadUserParam14         0
+0x9a GtrFxLeadUserParam15         0
+0x9b GtrFxLeadHidInput            64
+0x9c GtrFxLeadHidMaxOut           64
+0x9d GtrFxDriveType               Vintage2
+0x9e GtrFxDriveGain               7.5
+0x9f GtrFxDriveUserParam02        0
+0xa0 GtrFxDriveBass               4.0
+0xa1 GtrFxDriveMiddle             5.0
+0xa2 GtrFxDriveTreble             8.0
+0xa3 GtrFxDrivePresence           9.0
+0xa4 GtrFxDriveMaster             4.0
+0xa5 GtrFxDriveOutput             -18.8 dB
+0xa6 GtrFxDriveUserParam09        0
+0xa7 GtrFxDriveSpType             AM 4x12
+0xa8 GtrFxDriveSpAir              2
+0xa9 GtrFxDriveMicPosition        Center
+0xaa GtrFxDriveUserParam13        0
+0xab GtrFxDriveUserParam14        0
+0xac GtrFxDriveUserParam15        0
+0xad GtrFxDriveHidInput           64
+0xae GtrFxDriveHidMaxOut          64
+0xaf ChGtrFxInsPrePatch           no fx | no fx | no fx | no fx | no fx | no fx
+0xb0 ChGtrFxInsPostPatch          no fx | no fx | no fx | no fx | no fx | no fx
