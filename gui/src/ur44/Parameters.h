@@ -1,32 +1,34 @@
 #pragma once
 
-#include <QHash>
-#include <QList>
 #include <QString>
-#include <QStringList>
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 
 /*
- * The 177 DSP parameters, generated from memapi_ur44.dll (re/gen_gui_params.py -> parameters.json, embedded as
- * :/ur44/parameters.json). Ids and ranges are the wire values; labels are what dspMixFx displays.
+ * The 177 DSP parameters, recovered from memapi_ur44.dll. Ids and ranges are the wire values; labels are what
+ * dspMixFx displays.
+ *
+ * The data is constant, in static memory: ParameterTable.cpp is generated at build time by gen_parameter_table.py
+ * from tools/ur44_params.py and tools/ur44_labels.json.
  */
 namespace UR44
 {
 
 struct Parameter
 {
-    uint16_t id = 0;
-    QString name;
-    int32_t min = 0;
-    int32_t max = 0;
-    int32_t defaultValue = 0;
+    uint16_t id;
+    const char* name;
+    int32_t min;
+    int32_t max;
+    int32_t defaultValue;
     /// Valid instance indices: 0 .. instances-1 (channels, input pairs, strips, ...)
-    int instances = 1;
-    QString unit;
-    /// Display labels for min..max (labels[0] is min); empty for plain numbers
-    QStringList labels;
+    int instances;
+    /// "dB", "Hz", ... or ""
+    const char* unit;
+    /// Display labels for min..max (labels[0] is the label of min), or nullptr for plain numbers
+    const char* const* labels;
 
     bool isSigned() const { return min < 0; }
     bool isValid(int32_t value) const { return value >= min && value <= max; }
@@ -37,28 +39,41 @@ struct Parameter
     int32_t fromWire(uint32_t raw) const { return int32_t(raw); }
 };
 
+namespace Generated
+{
+struct NameIndexEntry
+{
+    const char* name;
+    uint16_t id;
+};
+
+/// Indexed by id
+extern const Parameter PARAMETERS[];
+extern const std::size_t PARAMETER_COUNT;
+/// Every name and alias, sorted by name (strcmp order)
+extern const NameIndexEntry NAME_INDEX[];
+extern const std::size_t NAME_INDEX_COUNT;
+}
+
+/*
+ * Lookups in the parameter table.
+ */
 class Parameters
 {
 public:
-    /// The table embedded in the binary
     static const Parameters& instance();
-
-    /// Parses a parameters.json document; empty on error
-    static Parameters fromJson(const QByteArray& json, QString* error = nullptr);
 
     const Parameter* byId(uint16_t id) const;
     /// By name, including the macOS MemAPI 2.3.0 aliases
+    const Parameter* byName(const char* name) const;
     const Parameter* byName(const QString& name) const;
     /// byName() that must succeed (asserts in debug builds)
+    const Parameter& operator[](const char* name) const;
     const Parameter& operator[](const QString& name) const;
 
-    const QList<Parameter>& all() const { return m_parameters; }
-    bool isEmpty() const { return m_parameters.isEmpty(); }
-
-private:
-    QList<Parameter> m_parameters;
-    QHash<uint16_t, int> m_byId;
-    QHash<QString, int> m_byName;
+    std::size_t size() const { return Generated::PARAMETER_COUNT; }
+    const Parameter* begin() const { return Generated::PARAMETERS; }
+    const Parameter* end() const { return Generated::PARAMETERS + Generated::PARAMETER_COUNT; }
 };
 
 }

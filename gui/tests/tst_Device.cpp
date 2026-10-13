@@ -130,7 +130,6 @@ private:
     bool m_open = false;
 };
 
-// Not a global reference: that would load the table during static initialization, before the resource exists
 const Parameter& P(const char* name)
 {
     return Parameters::instance()[name];

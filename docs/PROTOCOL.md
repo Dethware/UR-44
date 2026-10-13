@@ -8,6 +8,9 @@ Status: early RE. "Confirmed" = observed on the real device (fw BOOT/MAIN V2.12)
 * USB config 1 (class compliant, what Linux uses): UAC2 audio + one USB-MIDI
   interface (IF3, bulk EP 0x01/0x82) with two embedded ports.
   **Control traffic goes over MIDI port 2** (`hw:X,0,1`). Port 1 does not answer. *Confirmed.*
+* No unique unit ID exists: the USB descriptor has no serial (iSerial 0; udev's ID_SERIAL is just
+  vendor_product), and no known command returns one. Only the USB port path (udev ID_PATH, the ALSA card
+  longname "... at usb-0000:0c:00.0-3") tells two units apart. The app supports one UR44 for now.
 * ALSA rawmidi opens the port exclusively: a second `tools/ur44.py` while one is running (e.g. `meters`)
   fails with EBUSY. A UI should be the single owner of the port, multiplexing meters, gets/sets and
   notifications. Or it could use the ALSA sequencer, where several clients can subscribe to the port.

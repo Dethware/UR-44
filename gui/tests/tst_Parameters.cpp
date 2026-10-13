@@ -2,6 +2,8 @@
 
 #include "Parameters.h"
 
+#include <cstring>
+
 using namespace UR44;
 
 class ParametersTest : public QObject
@@ -12,11 +14,13 @@ private slots:
     void table_isComplete()
     {
         const Parameters& p = Parameters::instance();
-        QCOMPARE(p.all().size(), 177);
+        QCOMPARE(p.size(), std::size_t(177));
         for (int id = 0; id <= 0xb0; ++id)
         {
             QVERIFY2(p.byId(uint16_t(id)), qPrintable(QString::number(id)));
+            QCOMPARE(p.byId(uint16_t(id))->id, uint16_t(id));
         }
+        QVERIFY(!p.byId(0xb1));
     }
 
     void lookup_byNameAndAlias()
@@ -60,14 +64,33 @@ private slots:
         QCOMPARE(pan.fromWire(uint32_t(-5)), -5);
     }
 
-    void fromJson_rejectsInvalid()
+    void nameIndex_isSortedAndComplete()
     {
-        QString error;
-        QVERIFY(Parameters::fromJson("not json", &error).isEmpty());
-        QVERIFY(!error.isEmpty());
-        // label count must match the range
-        QVERIFY(Parameters::fromJson(R"({"parameters": [{"id": 1, "name": "X", "min": 0, "max": 2, "labels": ["a"]}]})")
-                    .isEmpty());
+        const Parameters& p = Parameters::instance();
+        using UR44::Generated::NAME_INDEX;
+        using UR44::Generated::NAME_INDEX_COUNT;
+        for (std::size_t i = 1; i < NAME_INDEX_COUNT; ++i)
+        {
+            QVERIFY2(std::strcmp(NAME_INDEX[i - 1].name, NAME_INDEX[i].name) < 0, NAME_INDEX[i].name);
+        }
+        // every parameter is found by its own name, both as const char* and QString
+        for (const Parameter& param : p)
+        {
+            QCOMPARE(p.byName(param.name), &param);
+            QCOMPARE(p.byName(QString::fromLatin1(param.name)), &param);
+        }
+        QCOMPARE(NAME_INDEX_COUNT, p.size() + 3); // + the three macOS aliases
+    }
+
+    void ranges_areConsistent()
+    {
+        for (const Parameter& param : Parameters::instance())
+        {
+            QVERIFY(param.max >= param.min);
+            QVERIFY(param.instances >= 1);
+            QVERIFY(param.isValid(param.defaultValue));
+            // (the label count per range is checked by the generator, where a mismatch can be detected)
+        }
     }
 };
 
