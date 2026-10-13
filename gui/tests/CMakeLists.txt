@@ -9,6 +9,12 @@ endfunction()
 # shared
 add_qt_test(tst_JsonSerialization shared)
 
+# ur44: protocol, bulk dumps, parameter table, device connection (with a fake device)
+add_qt_test(tst_Protocol ur44)
+add_qt_test(tst_BulkDump ur44)
+add_qt_test(tst_Parameters ur44)
+add_qt_test(tst_Device ur44)
+
 # application: the settings are tested on their own, the application isn't a library
 add_qt_test(tst_Settings shared)
 target_sources(tst_Settings PRIVATE ${PROJECT_SOURCE_DIR}/src/application/Settings.cpp)

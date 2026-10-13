@@ -10,9 +10,24 @@ qt_add_executable(ur44-control
 
     Settings.h
     Settings.cpp
+
+    Bindings.h
+    Bindings.cpp
+
+    ChannelStrip.h
+    ChannelStrip.cpp
+
+    DevicePage.h
+    DevicePage.cpp
+
+    LevelMeter.h
+    LevelMeter.cpp
+
+    MixPage.h
+    MixPage.cpp
 )
 
-target_link_libraries(ur44-control PRIVATE shared shared_ui Qt6::Widgets)
+target_link_libraries(ur44-control PRIVATE ur44 shared shared_ui Qt6::Widgets)
 
 # Install the executable
 install(TARGETS ur44-control DESTINATION bin)

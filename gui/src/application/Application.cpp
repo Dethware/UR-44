@@ -12,6 +12,13 @@
 #include "FileSystem.h"
 #include "CustomMessageBox.h"
 
+#if defined Q_OS_UNIX
+#include <QSocketNotifier>
+#include <csignal>
+#include <sys/socket.h>
+#include <unistd.h>
+#endif
+
 #if defined Q_OS_WIN32
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -24,6 +31,17 @@
 #define TOSTRING(x) STRINGIFY(x)
 
 namespace {
+#if defined Q_OS_UNIX
+// Self-pipe for SIGINT/SIGTERM/SIGHUP: the handler only writes a byte, the event loop quits cleanly
+int signalPipe[2] = {-1, -1};
+
+void quitSignalHandler(int)
+{
+    char c = 1;
+    (void)::write(signalPipe[0], &c, 1);
+}
+#endif
+
 void appDebugOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
     const char *levels = "DWCFIS";
@@ -38,8 +56,12 @@ void appDebugOutput(QtMsgType type, const QMessageLogContext &context, const QSt
 
     QString out = format.arg(buf).arg(levels[type]).arg(msg);
 
-    APPLICATION->logFile->write(out.toUtf8());
-    APPLICATION->logFile->flush();
+    // Writing to a closed file makes Qt warn, which would come back here
+    if (APPLICATION->logFile && APPLICATION->logFile->isOpen())
+    {
+        APPLICATION->logFile->write(out.toUtf8());
+        APPLICATION->logFile->flush();
+    }
     QTextStream(stderr) << out.toLocal8Bit();
     fflush(stderr);
 }
@@ -171,12 +193,35 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
         qDebug() << "<> Paths set.";
     }
 
+#if defined Q_OS_UNIX
+    // Quit through the event loop on Ctrl-C / kill, so windows and devices shut down properly
+    if (::socketpair(AF_UNIX, SOCK_STREAM, 0, signalPipe) == 0)
+    {
+        auto* notifier = new QSocketNotifier(signalPipe[1], QSocketNotifier::Read, this);
+        connect(notifier, &QSocketNotifier::activated, this, [notifier]() {
+            char c;
+            (void)::read(signalPipe[1], &c, 1);
+            notifier->setEnabled(false);
+            qDebug() << "Quitting on signal";
+            QCoreApplication::quit();
+        });
+        struct sigaction action = {};
+        action.sa_handler = quitSignalHandler;
+        sigemptyset(&action.sa_mask);
+        action.sa_flags = SA_RESTART;
+        for (int sig : {SIGINT, SIGTERM, SIGHUP})
+        {
+            sigaction(sig, &action, nullptr);
+        }
+    }
+#endif
+
     connect(this, &Application::aboutToQuit, [this](){
         settings.flush();
+        // Only flush: windows are destroyed after this and may still log. The file is closed in ~Application.
         if(logFile)
         {
             logFile->flush();
-            logFile->close();
         }
     });
 }
@@ -190,8 +235,12 @@ void Application::showFatalErrorMessage(const QString& title, const QString& con
 
 Application::~Application()
 {
-    // Shut down logger by setting the logger function to nothing
+    // Shut down logger by setting the logger function to nothing, then close the log
     qInstallMessageHandler(nullptr);
+    if(logFile)
+    {
+        logFile->close();
+    }
 
 #if defined Q_OS_WIN32
     // Detach from Windows console
