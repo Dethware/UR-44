@@ -15,6 +15,8 @@ No driver is needed.
 |---|---|
 | `tools/ur44.py` | CLI/library: `version`, `get`, `set`, `dump`, `mix 1\|2`, `phones2`, `monitor` |
 | `tools/ur44_params.py`, `tools/ur44_labels.json` | Parameter table and display labels (generated from memapi) |
+| `tools/ur44_sweet_spot.py` | The 34 factory Sweet Spot Data presets (Yamaha's, generated from the TOOLS .ssd files) |
+| `gui/` | **UR44 Control**, the Qt 6 mixer application (C++17, CMake). See [gui/README](gui/README) for details |
 | `docs/PROTOCOL.md` | The protocol as currently understood, with confirmed vs static-only marked |
 | `docs/REVERSE_ENGINEERING.md` | Vendor binaries, addresses, tooling, tricks, open items |
 | `docs/data/` | Raw evidence: descriptor dump, live address sweep, a state dump |
@@ -32,6 +34,20 @@ python3 tools/ur44.py monitor          # watch unsolicited changes (e.g. +48V sw
 ```
 
 The ALSA port defaults to `hw:0,0,1`; override it with `--port`.
+
+## The GUI
+
+Needs Qt 6, CMake 3.16+, the ALSA development files and Python 3 (for the build-time generators).
+
+```bash
+cmake -B build
+cmake --build build
+ctest --test-dir build
+build/gui/src/application/ur44-control
+```
+
+It finds the UR44 by its ALSA card name and owns the MIDI port while it runs, so close it before using
+`tools/ur44.py` (and the other way around).
 
 ## Rebuilding the generated files
 

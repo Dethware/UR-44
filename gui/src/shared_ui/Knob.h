@@ -5,10 +5,12 @@
 #include <QPoint>
 
 /*
- * A rotary control in the style of dspMixFx: a coloured cap with a pointer, sweeping 270 degrees.
+ * A rotary control in the style of hardware mixer software: a coloured cap with a pointer, sweeping 270 degrees.
  * Bipolar ranges (min < 0 < max, e.g. pan) draw the arc from the centre.
  *
  * Dragged linearly: up or right increases. Wheel and keyboard work as for any QAbstractSlider.
+ * While dragging, the pointer is hidden and held in place, so a drag never runs into the screen edge. That needs
+ * pointer warping, which Wayland doesn't allow: there the pointer just moves as usual.
  *
  * Deliberately not a QDial: Breeze (Plasma 6) puts a QFocusFrame on keyboard-focused QDials, an overlay that
  * draws a ring where *its* dial handle would be, regardless of how the widget paints itself.
@@ -37,6 +39,10 @@ protected:
 
 private:
     QColor m_color;
-    QPoint m_dragStart;
+    /// Global position of the last mouse event; with the pointer captured, the press position it's warped back to
+    QPointF m_dragLastSeen;
+    QPointF m_dragPressedAt;
+    bool m_pointerCaptured = false;
     int m_dragStartValue = 0;
+    double m_dragSteps = 0.0;
 };

@@ -1,8 +1,11 @@
 #include "Knob.h"
 
+#include <QCursor>
+#include <QGuiApplication>
 #include <QMouseEvent>
 #include <QPainter>
 
+#include <algorithm>
 #include <cmath>
 #include <QtMath>
 
@@ -25,8 +28,15 @@ void Knob::mousePressEvent(QMouseEvent* event)
         QAbstractSlider::mousePressEvent(event);
         return;
     }
-    m_dragStart = event->position().toPoint();
+    m_dragPressedAt = event->globalPosition();
+    m_dragLastSeen = m_dragPressedAt;
     m_dragStartValue = value();
+    m_dragSteps = 0.0;
+    m_pointerCaptured = QGuiApplication::platformName() != QLatin1String("wayland");
+    if (m_pointerCaptured)
+    {
+        setCursor(Qt::BlankCursor);
+    }
     setSliderDown(true);
     event->accept();
 }
@@ -39,10 +49,26 @@ void Knob::mouseMoveEvent(QMouseEvent* event)
         return;
     }
     // up and right increase; Shift for fine control
-    QPoint delta = event->position().toPoint() - m_dragStart;
+    QPointF delta = event->globalPosition() - m_dragLastSeen;
+    if (m_pointerCaptured)
+    {
+        // back to where the drag started; the move event that causes has no delta
+        if (!delta.isNull())
+        {
+            QCursor::setPos(m_dragPressedAt.toPoint());
+        }
+        m_dragLastSeen = m_dragPressedAt;
+    }
+    else
+    {
+        m_dragLastSeen = event->globalPosition();
+    }
     double pixels = (event->modifiers() & Qt::ShiftModifier) ? DRAG_PIXELS * 4.0 : DRAG_PIXELS;
-    double steps = (delta.x() - delta.y()) * (maximum() - minimum()) / pixels;
-    setSliderPosition(m_dragStartValue + int(std::lround(steps)));
+    double deltaSteps = (delta.x() - delta.y()) * (maximum() - minimum()) / pixels;
+    // clamped to the range, so reversing at an end moves the knob at once
+    m_dragSteps = std::clamp(m_dragSteps + deltaSteps, double(minimum() - m_dragStartValue),
+                             double(maximum() - m_dragStartValue));
+    setSliderPosition(m_dragStartValue + int(std::lround(m_dragSteps)));
     event->accept();
 }
 
@@ -50,6 +76,11 @@ void Knob::mouseReleaseEvent(QMouseEvent* event)
 {
     if (event->button() == Qt::LeftButton && isSliderDown())
     {
+        if (m_pointerCaptured)
+        {
+            unsetCursor();
+            m_pointerCaptured = false;
+        }
         setSliderDown(false);
         event->accept();
         return;

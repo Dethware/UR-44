@@ -14,9 +14,6 @@ qt_add_executable(ur44-control
     Bindings.h
     Bindings.cpp
 
-    Knob.h
-    Knob.cpp
-
     Widgets.h
     Widgets.cpp
 
