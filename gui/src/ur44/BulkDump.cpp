@@ -162,4 +162,59 @@ std::optional<BulkDump> BulkDump::decode(const QByteArray& payload, QString* err
     return dump;
 }
 
+namespace
+{
+void appendBE(QByteArray& out, uint32_t v, int size)
+{
+    for (int b = size - 1; b >= 0; --b)
+    {
+        out.append(char((v >> (8 * b)) & 0xFF));
+    }
+}
+
+QByteArray chunk(const QString& name, const QByteArray& body)
+{
+    QByteArray out = name.toLatin1().leftJustified(16, '\0', true);
+    // 00 01, zeros, 27 74 (the format version the device uses), u32 BE body length
+    out.append(QByteArray::fromHex("010000000000000000002774"));
+    appendBE(out, uint32_t(body.size()), 4);
+    return out + body;
+}
+}
+
+QByteArray BulkDump::encode() const
+{
+    QByteArray format;
+    QByteArray data;
+    for (const Group& group : groups)
+    {
+        format.append(char(0x80));
+        format.append(char(0x01));
+        appendBE(format, group.instances, 2);
+        for (const Item& item : group.items)
+        {
+            appendBE(format, item.id, 2);
+            format.append(char(item.flags));
+            format.append(char(item.size));
+            if (item.isArray())
+            {
+                appendBE(format, item.count, 2);
+            }
+            for (int inst = 0; inst < group.instances; ++inst)
+            {
+                if (item.isArray())
+                {
+                    QByteArray a = arrays.value(item.id).value(inst).leftJustified(item.count * item.size, '\0', true);
+                    data.append(a);
+                }
+                else
+                {
+                    appendBE(data, uint32_t(values.value(item.id).value(inst)), item.size);
+                }
+            }
+        }
+    }
+    return chunk("F_" + name, format) + chunk("D_" + name, data);
+}
+
 }

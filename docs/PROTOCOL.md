@@ -47,7 +47,7 @@ against the Windows builders. The host-side command numbers are `IModelService::
 | 4 / 5 | Meter start / stop | `F0 43 30 3E 14 02 02 32 {7F\|00} F7` (`METER_START`/`METER_STOP`) | **confirmed**: frames stream at 20/s until stopped |
 | 1 / 6 | Store scene (variant 1 / 2) | `F0 43 30 3E 14 03 02 01 <n:u16> F7` with n = 1 or 2. GUI `sendStoreSceneCommand` → device answers with Function `03 02 01` (`sceneStoreCompleted`) | static. **Writes device memory; don't send blindly** |
 | 3 / 8 / 0xc | Bulk dump request | `F0 43 20 3E 14 01 01 <n:u32> F7`, n = 1 (current scene), 2 (morph table), 3 (all data) | **confirmed** for 1 and 3 (one reply each, ~3.5 KB); 2 gets no reply |
-| 2 / 7 | Bulk dump: send scene / morph table | `F0 43 00 3E <lenH> <lenL> 14 01 01 <n:u32> <data7> <cs> F7`, n = 1 scene, 2 morph table | static. **Overwrites device state** |
+| 2 / 7 | Bulk dump: send scene / morph table | `F0 43 00 3E <lenH> <lenL> 14 01 01 <n:u32> <data7> <cs> F7`, n = 1 scene, 2 morph table | morph table **confirmed** (see "Sweet Spot Data" below); scene static. **Overwrites device state** |
 | 0xb | Send version (host → device) | `F0 43 10 3E 14 00 01 00 <text, '\n'→00> F7` | static |
 | 0xd | Monitor-matrix control mode | `F0 43 10 3E 14 03 09 01 <mode:u8> F7` | static |
 | 0xe / 0xf | FX assign / unassign | assign `F0 43 10 3E 14 03 08 01 <fx type> <ch:u16> <point> F7`, unassign `… 03 08 02 <fx type> <ch:u16> 00 F7`. fx type 0 = channel strip, 1 = guitar FX; point 0 = Pre, 1 = Post (MemAPI::SetFxPatch / ResetFxPatch). The device picks the strip and updates `ChFxIns*Patch` / `ChGtrFxIns*Patch` itself (no notification is sent; a get right after the assign may time out once) | **confirmed** (input 1, both types, Post; the full-state diff after unassign was identical) |
@@ -212,3 +212,42 @@ Scale: **dB = value / 102.4 − 80**, i.e. 0 = −80 dB (floor) and 8192 = 0 dBF
   6126 on DAW-L/R. 6126 / 102.4 − 80 = −20.2 dB, so the formula holds within 0.2 dB. That is a peak
   meter (an RMS reading would be 3 dB lower).
 * Ballistics: release ≈ 44 dB/s (about 680 units per 150 ms); the peak hold lasts ≈ 1.5–2 s.
+
+## Effects: host-side relations and quirks
+
+From macOS MemAPI `smdSpecialRelationTbl`. The device does *not* do these itself; a client changing these
+parameters has to (implemented in `gui/src/ur44/Effects.cpp`):
+
+* **MORPH** (`smd_SetPrmRelMorph`): `FxMorphValue[strip]` (0..120) / 15 gives a morph table point `i` and a
+  fraction `f` (value 0 = exactly point 0; the last point is 8). The 17 values of points `i` and `i+1` are read
+  from `Morph*[strip * 9 + point]` (0x53..0x63). `(b - a) * f + a` is truncated, clamped, and written to the
+  strip's `Fx*` counterparts (FxCompAttack .. FxEqPeqGain, same order).
+* **REV-X type** (`smd_SetPrmRelRevType`): when `FxRevType` changes, the reverb parameters reset to the type's
+  defaults (Hall / Room / Plate): Time 23/6/21, Diff 10/8/8, IniDly 2, Hpf 4/6/12, Lpf 50/47/52, RoomSize
+  29/15/18, HighRatio 8/7/9, LowRatio 12/11/10, Decay 27/15/5, LowFreq 32. `FxRevBal` is left alone.
+* **Guitar amp type** (`smd_SetPrmRelGtrFxType`): when `GtrFxType` changes, the 18 parameters of the *new*
+  model (`GtrFx<Clean|Crunch|Lead|Drive>*`) reset to their defaults.
+* There's no host relation between REV-X time and room size. The *displayed* time is computed from type, room
+  size and time (`gui/src/ur44/ReverbTime.cpp`, from `prmTable::getActualReverbTime`).
+
+**Firmware quirk (confirmed):** the device doesn't answer a parameter read of an insert parameter
+(`ChFxIns{Pre,Post}Patch`, `ChGtrFxIns{Pre,Post}Patch`) while it's non-zero, i.e. while an effect is assigned.
+Other parameters answer normally, and the bulk dump has the right value. So after an FX assign/unassign, read
+the state with a dump (`Device::resync()`), not with parameter reads.
+
+## Sweet Spot Data (morph tables)
+
+* Presets are `.ssd` files (512 bytes): `SSMD`, version 1 (u32 LE at 8), id ("0002", 16 bytes at 0x10), then 9 points
+  of 20 big-endian u16 at 0x20; the first 17 are the Morph* fields in parameter order. The name is the file name.
+  TOOLS for UR44 ships 34 of them (6 "Yamaha Preset", 28 "Engineers' Preset", ids 0001..0034), with mangled names
+  on Windows; `re/extract_sweet_spot.py` restores the names.
+  The GUI ships them built in (`tools/ur44_sweet_spot.py`, generated from the vendor files; they carry
+  "Copyright(C)2008 Yamaha Corporation").
+* **Loading one (confirmed):** send a bulk dump of type 2 whose payload is a `MorphingTable` chunk pair, the
+  dump format with just the MorphSystemId/MorphSystemName group (4 strips) and the Morph* group (36 = 4 x 9),
+  holding the whole table with the target strip replaced. The device answers
+  `F0 43 10 3E 14 03 02 02 00 00 00 00 02 F7` (Function class, data type 2). Then re-apply the strip's
+  `FxMorphValue` (the morph relation) so its live compressor/EQ values follow the new table, as dspMixFx does.
+  Re-sending the current table is a no-op, and loading "02 Color" into strip 4 then "01 Basic" back left the
+  state identical (`re/probe_morph_table.py`).
+* A type 2 *dump request* gets no reply; the table comes with the "All" dump.

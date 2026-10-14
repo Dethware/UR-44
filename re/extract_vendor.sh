@@ -46,6 +46,12 @@ cp "$TMP/YSUSBCom/ysusb_bulklib32.dll" "$TMP/YSUSBCom/ysusb_asio32.dll" "$D/x86/
 cp "$TMP"/YSUSB32/*.sys "$TMP"/YSUSB32/*.inf "$TMP"/YSUSB32/*.cat "$TMP/YSUSB32/ysusb_cp.exe" "$D/x86/"
 cp "$TMP"/YSUSB64/*.sys "$TMP"/YSUSB64/*.inf "$TMP"/YSUSB64/*.cat "$TMP"/YSUSB64/*.dll "$TMP/YSUSB64/ysusb_cp.exe" "$D/x64/"
 
+# Sweet Spot Data presets (Basic FX Suite cab), with their proper names
+cabextract -q -d "$TMP/bfxs_comm" "$T/BFxSComm.cab"
+python3 -I re/extract_sweet_spot.py "$TMP/bfxs_comm" "$OUT/sweet_spot"
+# ...and as the data module the GUI builds its built-in presets from (committed; should come out unchanged)
+python3 -I re/extract_sweet_spot.py --module "$OUT/sweet_spot" tools/ur44_sweet_spot.py
+
 # --- Firmware updater V2.12: firmware image is an embedded, zlib-compressed Qt resource ---
 python3 -I re/extract_firmware.py "$DL/FirmwareUpdater_V212/UR44_firmware_V212.exe" "$OUT/firmware_v212"
 # the macOS updater (optional "extra" download) embeds the identical image; extract it to cross-check

@@ -80,6 +80,43 @@ private slots:
         QCOMPARE(dump->values[0x0c], (QList<int32_t>{127, 128}));
     }
 
+    void encode_roundTrips()
+    {
+        for (const char* name : {"dump_all.bin", "dump_currentscene.bin"})
+        {
+            QByteArray raw = readData(name);
+            auto dump = BulkDump::decode(raw);
+            QVERIFY(dump);
+            // the captured payloads carry a few bytes of 7-bit padding at the end
+            QByteArray encoded = dump->encode();
+            QCOMPARE(encoded, raw.left(encoded.size()));
+            QVERIFY(raw.size() - encoded.size() < 8);
+        }
+    }
+
+    void encode_subsetIsDecodable()
+    {
+        // a payload with only some groups (like the morph table) decodes to the same values
+        auto all = BulkDump::decode(readData("dump_all.bin"));
+        BulkDump morph;
+        morph.name = "MorphingTable";
+        for (const auto& g : all->groups)
+        {
+            if (g.items.first().id == 0x51 || g.items.first().id == 0x53)
+            {
+                morph.groups.append(g);
+            }
+        }
+        morph.values = all->values;
+        morph.arrays = all->arrays;
+        auto back = BulkDump::decode(morph.encode());
+        QVERIFY(back);
+        QCOMPARE(back->name, QString("MorphingTable"));
+        QCOMPARE(back->values[0x53], all->values[0x53]);
+        QCOMPARE(back->arrays[0x52], all->arrays[0x52]);
+        QVERIFY(!back->values.contains(0x0c));
+    }
+
     void decode_rejectsMalformed()
     {
         QString error;

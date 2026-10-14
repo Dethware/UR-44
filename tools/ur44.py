@@ -138,6 +138,23 @@ class UR44:
         self.meters(False)
         self.flush()
 
+    def close(self):
+        """Releases the port (it's exclusive: nothing else can open it meanwhile)."""
+        if self.i:
+            self.meters(False)
+            _lib.snd_rawmidi_close(self.i)
+            _lib.snd_rawmidi_close(self.o)
+            self.i = self.o = None
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self.close()
+
+    def __del__(self):
+        self.close()
+
     def flush(self, max_time=0.5):
         """Drop pending input. Time-bounded: a device left streaming meters never goes quiet."""
         end = time.monotonic() + max_time

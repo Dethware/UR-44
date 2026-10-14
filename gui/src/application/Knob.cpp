@@ -62,8 +62,9 @@ void Knob::paintEvent(QPaintEvent*)
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
 
-    const qreal size = qMin(width(), height()) - 2;
-    const QRectF outer((width() - size) / 2.0, (height() - size) / 2.0, size, size);
+    // the circle is at the top; below it, only the sweep's ends and the cap reach down to HEIGHT_RATIO
+    const qreal size = qMin<qreal>(width(), height() / HEIGHT_RATIO) - 2;
+    const QRectF outer((width() - size) / 2.0, (height() - size * HEIGHT_RATIO) / 2.0, size, size);
     const QRectF cap = outer.adjusted(size * 0.18, size * 0.18, -size * 0.18, -size * 0.18);
     const QColor color = isEnabled() ? m_color : palette().color(QPalette::Disabled, QPalette::Button);
 
@@ -103,8 +104,9 @@ void Knob::paintEvent(QPaintEvent*)
 
     if (hasFocus())
     {
-        p.setPen(QPen(palette().color(QPalette::Highlight), 1, Qt::DotLine));
+        p.setPen(QPen(color, 1, Qt::DotLine));
         p.setBrush(Qt::NoBrush);
-        p.drawEllipse(outer.adjusted(0.5, 0.5, -0.5, -0.5));
+        p.drawArc(outer, int(START * 16), int(-SWEEP * 16));
+        // p.drawEllipse(outer.adjusted(0.5, 0.5, -0.5, -0.5));
     }
 }

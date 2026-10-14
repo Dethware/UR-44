@@ -24,6 +24,11 @@ public:
     Application(int &argc, char **argv);
     virtual ~Application();
 
+    /// Where Sweet Spot Data presets are looked for (the setting, or <data dir>/sweet-spot)
+    QString sweetSpotFolder() const {
+        return settings.sweetSpotFolder.isEmpty() ? dataDir.filePath("sweet-spot") : settings.sweetSpotFolder;
+    }
+
     qint64 timeSinceStart() const {
         return startTime.msecsTo(QDateTime::currentDateTime());
     }

@@ -40,11 +40,15 @@ struct Settings
     /// Empty means auto-detect.
     QString midiPort;
 
+    /// Folder with Sweet Spot Data presets (.ssd, searched recursively). Empty means <data dir>/sweet-spot.
+    QString sweetSpotFolder;
+
     QJsonObject extra;
 
     template<typename S> void serialize(S& fp)
     {
         fp.property("midi_port", midiPort);
+        fp.property("sweet_spot_folder", sweetSpotFolder);
     }
 
 private:

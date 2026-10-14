@@ -17,8 +17,14 @@ qt_add_executable(ur44-control
     Knob.h
     Knob.cpp
 
+    Widgets.h
+    Widgets.cpp
+
     DevicePage.h
     DevicePage.cpp
+
+    EffectEditors.h
+    EffectEditors.cpp
 
     LevelMeter.h
     LevelMeter.cpp

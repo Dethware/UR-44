@@ -7,8 +7,14 @@
 #include <QLabel>
 #include <QVBoxLayout>
 
+#include <QFileDialog>
+#include <QHBoxLayout>
+#include <QPushButton>
+
+#include "Application.h"
 #include "Bindings.h"
 #include "Device.h"
+#include "SweetSpot.h"
 
 using UR44::Device;
 
@@ -39,6 +45,40 @@ DevicePage::DevicePage(Device* device, QWidget* parent) : QWidget(parent)
     phantom34->setToolTip(tr("Set with the +48V switch on the front panel"));
     inputsForm->addRow(tr("+48V (MIC/LINE 3/4):"), phantom34);
     layout->addWidget(inputs);
+
+    auto* effects = new QGroupBox(tr("Effects"), this);
+    auto* effectsForm = new QFormLayout(effects);
+    auto* folderRow = new QHBoxLayout;
+    auto* folder = new QLabel(effects);
+    folder->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    auto showFolder = [folder]() {
+        QString path = APPLICATION->sweetSpotFolder();
+        int builtIn = UR44::SweetSpotPreset::builtIn().size();
+        int extra = UR44::SweetSpotPreset::available(path).size() - builtIn;
+        folder->setText(tr("%1 built in, %2 more from %3")
+                            .arg(builtIn)
+                            .arg(extra)
+                            .arg(QDir::toNativeSeparators(path)));
+        folder->setToolTip(tr("The factory presets from TOOLS for UR44 (%1) are built in. Other .ssd files in the "
+                              "folder are listed after them.")
+                               .arg(UR44::SweetSpotPreset::builtInNotice()));
+    };
+    showFolder();
+    folderRow->addWidget(folder, 1);
+    auto* browse = new QPushButton(tr("Choose..."), effects);
+    connect(browse, &QPushButton::clicked, this, [this, showFolder]() {
+        QString dir = QFileDialog::getExistingDirectory(this, tr("Sweet Spot Data folder"),
+                                                        APPLICATION->sweetSpotFolder());
+        if (!dir.isEmpty())
+        {
+            APPLICATION->settings.sweetSpotFolder = dir;
+            APPLICATION->settings.scheduleSave();
+            showFolder();
+        }
+    });
+    folderRow->addWidget(browse);
+    effectsForm->addRow(tr("Sweet Spot Data:"), folderRow);
+    layout->addWidget(effects);
 
     auto* status = new QGroupBox(tr("Device"), this);
     auto* statusForm = new QFormLayout(status);

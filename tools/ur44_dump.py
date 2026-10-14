@@ -60,3 +60,32 @@ def decode(raw):
                 per_inst.append(elems if flags & 0x40 else elems[0])
             values[pid] = per_inst
     return fmt_name[2:], groups, values, len(data) - i
+
+
+def _chunk(name, body):
+    header = name.encode("latin1").ljust(16, b"\0")
+    # 00 01, zeros, 27 74 (format version, as in the device's dumps), u32 BE body length
+    header += b"\x01\x00" + b"\0" * 8 + b"\x27\x74" + struct.pack(">I", len(body))
+    return header + body
+
+
+def encode(name, groups, values):
+    """Build a payload: the inverse of decode().
+
+    groups: [(instances, [(param_id, flags, size, count)])] (as parse_format returns)
+    values: {param_id: [value per instance]}; byte arrays as lists of ints per instance
+    """
+    fmt = bytearray()
+    data = bytearray()
+    for instances, items in groups:
+        fmt += bytes([0x80, 0x01]) + struct.pack(">H", instances)
+        for pid, flags, size, count in items:
+            fmt += struct.pack(">HBB", pid, flags, size)
+            if flags & 0x40:
+                fmt += struct.pack(">H", count)
+            for inst in range(instances):
+                v = values[pid][inst]
+                elems = list(v) + [0] * (count - len(v)) if flags & 0x40 else [v]
+                for e in elems:
+                    data += (int(e) & ((1 << (8 * size)) - 1)).to_bytes(size, "big")
+    return _chunk("F_" + name, bytes(fmt)) + _chunk("D_" + name, bytes(data))

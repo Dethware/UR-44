@@ -16,35 +16,38 @@
 
 #include "Bindings.h"
 #include "Device.h"
+#include "EffectEditors.h"
 #include "Knob.h"
 #include "LevelMeter.h"
 #include "Parameters.h"
 #include "Protocol.h"
 #include "ReverbTime.h"
+#include "Widgets.h"
 
 using namespace UR44;
+using namespace Widgets;
 
 namespace
 {
-// dspMixFx colours: REV-X is light blue, pan green, the REV-X return orange
-const QColor REVX_COLOR(64, 200, 232);
-const QColor PAN_COLOR(70, 170, 70);
-const QColor RETURN_COLOR(230, 130, 40);
-
-// Rows shared by all columns
+// Rows shared by all columns. The *Gap rows are empty space between sections, with a separator line in the middle.
 enum Row
 {
     InputTypeRow,
     MeterRow,
+    MeterGap,
     FxLocationRow,
     FxSwitchRow,
     FxTypeRow,
+    FxGap,
     SendRow,
     SendLabelRow,
+    SendGap,
     PanRow,
     PanLabelRow,
+    PanGap,
     MuteSoloRow,
     PhantomRow,
+    PhantomGap,
     FaderRow,
     LevelLabelRow,
     NameRow,
@@ -61,51 +64,26 @@ QString dawSolo(int bus)
 }
 
 /// A small square toggle like dspMixFx's, lit in `color` when checked
-QToolButton* squareButton(const QString& text, const QColor& color, const QString& tooltip, QWidget* parent)
-{
-    auto* b = new QToolButton(parent);
-    b->setText(text);
-    b->setToolTip(tooltip);
-    b->setCheckable(true);
-    b->setFixedSize(26, 22);
-    b->setStyleSheet(QString("QToolButton { background: #3a3a3a; color: #d0d0d0; border: 1px solid #1e1e1e;"
-                             " border-radius: 3px; font-weight: bold; }"
-                             "QToolButton:checked { background: %1; color: black; }"
-                             "QToolButton:disabled { background: #2e2e2e; color: #6a6a6a; }"
-                             // read-only indicators (PHONES 1, channel link) still show their state
-                             "QToolButton:checked:disabled { background: %2; color: #202020; }")
-                         .arg(color.name(), color.darker(150).name()));
-    return b;
-}
 
 /// A text toggle (INS.FX, Ch.Strip, SEND) in the same style, but wider
-QToolButton* textButton(const QString& text, const QColor& color, const QString& tooltip, QWidget* parent)
-{
-    auto* b = squareButton(text, color, tooltip, parent);
-    b->setFixedSize(QSize(64, 20));
-    return b;
-}
 
-QLabel* caption(const QString& text, QWidget* parent)
-{
-    auto* l = new QLabel(text, parent);
-    l->setAlignment(Qt::AlignCenter);
-    QFont f = l->font();
-    f.setPointSizeF(f.pointSizeF() * 0.85);
-    l->setFont(f);
-    return l;
-}
 
 void addCentered(QGridLayout* grid, QWidget* w, int row, int column, int columnSpan = 1)
 {
     grid->addWidget(w, row, column, 1, columnSpan, Qt::AlignHCenter);
 }
 
+/// A knob and its value label below it, kept together when the rows get taller (the REV-X block spans them)
+void addKnob(QGridLayout* grid, QWidget* knob, QWidget* label, int row, int column)
+{
+    grid->addWidget(knob, row, column, Qt::AlignHCenter | Qt::AlignBottom);
+    grid->addWidget(label, row + 1, column, Qt::AlignHCenter | Qt::AlignTop);
+}
+
 QSlider* fader(QWidget* parent)
 {
     auto* f = new QSlider(Qt::Vertical, parent);
     f->setMinimumHeight(140);
-    f->setToolTip(QObject::tr("Double-click for 0 dB"));
     return f;
 }
 }
@@ -131,6 +109,10 @@ MixPage::MixPage(int bus, Device* device, QWidget* parent) : QWidget(parent), m_
     m_grid = grid;
     m_stripColumns = {0, 1, 2, 3, 4, 5, 7, 9};
     grid->setRowStretch(FaderRow, 1);
+    for (int gap : {MeterGap, FxGap, SendGap, PanGap, PhantomGap})
+    {
+        grid->setRowMinimumHeight(gap, 5);
+    }
 
     outer->addWidget(makeSidePanel());
 
@@ -167,6 +149,10 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
     meterLayout->addWidget(meter);
     auto* switches = new QVBoxLayout;
     switches->setSpacing(3);
+    auto* phase = squareButton(QString::fromUtf8("Ø"), QColor(80, 160, 255), tr("Phase invert"), meterBox);
+    phase->setFixedWidth(34);
+    Bindings::toggle(phase, device, "ChPhaseOnf", ch);
+    switches->addWidget(phase);
     if (ch < 4) // there's no high pass filter on LINE INPUT 5/6
     {
         auto* hpf = squareButton("HPF", QColor(80, 160, 255), QString(), meterBox);
@@ -192,10 +178,6 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
         });
         switches->addWidget(hpf);
     }
-    auto* phase = squareButton(QString::fromUtf8("Ø"), QColor(80, 160, 255), tr("Phase invert"), meterBox);
-    phase->setFixedWidth(34);
-    Bindings::toggle(phase, device, "ChPhaseOnf", ch);
-    switches->addWidget(phase);
     switches->addStretch();
     meterLayout->addLayout(switches);
     addCentered(grid, meterBox, MeterRow, column);
@@ -213,9 +195,8 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
     QFont powerFont = power->font();
     powerFont.setPointSizeF(powerFont.pointSizeF() * 1.4);
     power->setFont(powerFont);
-    auto* edit = squareButton("e", QColor(200, 200, 200), tr("Effect editor (not available yet)"), this);
+    auto* edit = squareButton("e", QColor(200, 200, 200), tr("Edit the effect"), this);
     edit->setCheckable(false);
-    edit->setEnabled(false);
     auto* type = textButton("Ch.Strip", QColor(230, 120, 60), QString(), this);
     type->setCheckable(false);
 
@@ -249,6 +230,7 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
         {
             w->setEnabled(ready);
         }
+        edit->setEnabled(ready && now.has_value());
     };
     auto apply = [=](FxChoice choice, bool on) {
         if (auto now = assigned())
@@ -281,6 +263,19 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
         }
         refresh();
     });
+    connect(edit, &QToolButton::clicked, this, [=]() {
+        if (auto now = assigned())
+        {
+            if (now->type == Protocol::FxType::ChannelStrip)
+            {
+                EffectEditors::openChannelStrip(device, ch, window());
+            }
+            else
+            {
+                EffectEditors::openGuitarAmp(device, window());
+            }
+        }
+    });
     connect(power, &QToolButton::clicked, this, [=](bool on) {
         apply(*preferred, on);
         refresh();
@@ -305,15 +300,17 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
     // REV-X send (one per channel, shared by both mixes)
     auto* send = new Knob(REVX_COLOR, this);
     auto* sendLabel = caption(QString(), this);
-    Bindings::slider(send, device, "ChSendFxBusLevel", ch, sendLabel);
-    addCentered(grid, send, SendRow, column);
-    addCentered(grid, sendLabel, SendLabelRow, column);
+    Bindings::slider(send, device, "ChSendFxBusLevel", ch, sendLabel, {}, true);
+    Bindings::describe(send, tr("REV-X Send for IN %1").arg(ch + 1),
+                       tr("Adjusts the signal level which is sent to REV-X.\nShared by MIX 1 and MIX 2."));
+    addKnob(grid, send, sendLabel, SendRow, column);
 
     auto* pan = new Knob(PAN_COLOR, this);
     auto* panLabel = caption(QString(), this);
     Bindings::slider(pan, device, "ChSendMixBus" + b + "Pan", ch, panLabel);
-    addCentered(grid, pan, PanRow, column);
-    addCentered(grid, panLabel, PanLabelRow, column);
+    Bindings::describe(pan, tr("Pan for IN %1").arg(ch + 1),
+                       tr("Places the signal between the left and right of MIX %1.").arg(m_bus));
+    addKnob(grid, pan, panLabel, PanRow, column);
 
     auto* muteSolo = new QWidget(this);
     auto* msLayout = new QHBoxLayout(muteSolo);
@@ -341,7 +338,9 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
 
     auto* level = fader(this);
     auto* levelLabel = caption(QString(), this);
-    Bindings::slider(level, device, "ChSendMixBus" + b + "Level", ch, levelLabel);
+    Bindings::slider(level, device, "ChSendMixBus" + b + "Level", ch, levelLabel, {}, true);
+    Bindings::describe(level, tr("Level for IN %1").arg(ch + 1),
+                       tr("Adjusts the level of the input in MIX %1.").arg(m_bus));
     addCentered(grid, level, FaderRow, column);
     addCentered(grid, levelLabel, LevelLabelRow, column);
     addCentered(grid, caption(tr("IN %1").arg(ch + 1), this), NameRow, column);
@@ -357,8 +356,9 @@ void MixPage::addDawColumn(QGridLayout* grid, int column)
     auto* pan = new Knob(PAN_COLOR, this);
     auto* panLabel = caption(QString(), this);
     Bindings::slider(pan, m_device, "DawSendMixBus" + b + "Bal", 0, panLabel);
-    addCentered(grid, pan, PanRow, column);
-    addCentered(grid, panLabel, PanLabelRow, column);
+    Bindings::describe(pan, tr("Balance for DAW"),
+                       tr("Adjusts the left/right balance of the computer playback in MIX %1.").arg(m_bus));
+    addKnob(grid, pan, panLabel, PanRow, column);
 
     auto* muteSolo = new QWidget(this);
     auto* msLayout = new QHBoxLayout(muteSolo);
@@ -374,7 +374,9 @@ void MixPage::addDawColumn(QGridLayout* grid, int column)
 
     auto* level = fader(this);
     auto* levelLabel = caption(QString(), this);
-    Bindings::slider(level, m_device, "DawSendMixBus" + b + "Level", 0, levelLabel);
+    Bindings::slider(level, m_device, "DawSendMixBus" + b + "Level", 0, levelLabel, {}, true);
+    Bindings::describe(level, tr("Level for DAW"),
+                       tr("Adjusts the level of the computer playback in MIX %1.").arg(m_bus));
     addCentered(grid, level, FaderRow, column);
     addCentered(grid, levelLabel, LevelLabelRow, column);
     // MIX 1 plays DAW 1/2 (PipeWire "Line1"), MIX 2 plays DAW 3/4 ("Line2")
@@ -404,9 +406,11 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     // bypassed and the channels' REV-X sends belong to this mix (PatchFxSend)
     auto* sendOn = textButton("SEND", REVX_COLOR, QString(), revx);
     sendOn->setFixedWidth(48);
-    auto* edit = squareButton("e", QColor(200, 200, 200), tr("REV-X editor (not available yet)"), revx);
+    auto* edit = squareButton("e", QColor(200, 200, 200), tr("Edit REV-X"), revx);
     edit->setCheckable(false);
-    edit->setEnabled(false);
+    connect(edit, &QToolButton::clicked, this, [this, device]() { EffectEditors::openReverb(device, window()); });
+    connect(device, &Device::stateChanged, edit, [edit, device]() { edit->setEnabled(device->isReady()); });
+    edit->setEnabled(device->isReady());
     auto sendActive = [device, bus]() {
         return !device->value("FxRevBypass").value_or(1) && device->value("PatchFxSend").value_or(-1) == bus - 1;
     };
@@ -443,12 +447,17 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     auto* time = new Knob(QColor(60, 90, 200), revx);
     auto* timeLabel = caption(QString(), revx);
     Bindings::slider(time, device, "FxRevTime", 0);
+    Bindings::describe(time, tr("REV-X Reverb Time"),
+                       tr("Adjusts the reverb time. The range depends on the reverb type and room size."),
+                       [device](int32_t v) {
+                           return ReverbTime::text(device->value("FxRevType").value_or(0),
+                                                   device->value("FxRevRoomSize").value_or(0), v) + " s";
+                       });
     // the time depends on the type and room size (dspMixFx computes it the same way)
     auto showTime = [device, timeLabel, time]() {
         QString t = ReverbTime::text(device->value("FxRevType").value_or(0), device->value("FxRevRoomSize").value_or(0),
                                      device->value("FxRevTime").value_or(0));
-        timeLabel->setText(t);
-        time->setToolTip(tr("Reverb time: %1 s").arg(t));
+        timeLabel->setText(t + " s");
     };
     for (const char* name : {"FxRevType", "FxRevRoomSize", "FxRevTime"})
     {
@@ -459,7 +468,9 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     rl->addWidget(time, 4, 0, Qt::AlignHCenter);
     auto* rtn = new Knob(RETURN_COLOR, revx);
     auto* rtnLabel = caption(QString(), revx);
-    Bindings::slider(rtn, device, "FxRevBus" + b + "Level", 0, rtnLabel);
+    Bindings::slider(rtn, device, "FxRevBus" + b + "Level", 0, rtnLabel, {}, true);
+    Bindings::describe(rtn, tr("REV-X Return for MIX %1").arg(m_bus),
+                       tr("Adjusts the level of the reverb signal returned to MIX %1.").arg(m_bus));
     rl->addWidget(rtn, 4, 1, Qt::AlignHCenter);
     rl->addWidget(timeLabel, 5, 0);
     rl->addWidget(rtnLabel, 5, 1);
@@ -468,8 +479,9 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     auto* bal = new Knob(PAN_COLOR, this);
     auto* balLabel = caption(QString(), this);
     Bindings::slider(bal, device, "MasterMixBus" + b + "Bal", 0, balLabel);
-    addCentered(grid, bal, PanRow, column);
-    addCentered(grid, balLabel, PanLabelRow, column);
+    Bindings::describe(bal, tr("Balance for MIX %1").arg(m_bus),
+                       tr("Adjusts the left/right balance of the MIX %1 output.").arg(m_bus));
+    addKnob(grid, bal, balLabel, PanRow, column);
 
     auto* mute = squareButton("M", QColor(240, 130, 40), tr("Mute MIX %1").arg(m_bus), this);
     Bindings::toggle(mute, device, "MasterMixBus" + b + "Onf", 0, true);
@@ -477,7 +489,9 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
 
     auto* level = fader(this);
     auto* levelLabel = caption(QString(), this);
-    Bindings::slider(level, device, "MasterMixBus" + b + "Level", 0, levelLabel);
+    Bindings::slider(level, device, "MasterMixBus" + b + "Level", 0, levelLabel, {}, true);
+    Bindings::describe(level, tr("Master level for MIX %1").arg(m_bus),
+                       tr("Adjusts the output level of MIX %1.").arg(m_bus));
     addCentered(grid, level, FaderRow, column);
     addCentered(grid, levelLabel, LevelLabelRow, column);
     addCentered(grid, caption(tr("MASTER"), this), NameRow, column);
@@ -556,19 +570,15 @@ void MixPage::paintEvent(QPaintEvent* event)
         p.drawRoundedRect(strip, 4, 4);
 
         // section boundaries; skip the ones that would only frame empty space (DAW) or cut the REV-X block (master)
-        QList<int> boundaries{MeterRow, FxTypeRow, SendLabelRow, PanLabelRow, PhantomRow};
-        if (column == 7)
+        QList<int> boundaries{MeterGap, FxGap, SendGap, PanGap, PhantomGap};
+        if (column == 7 || column == 9)
         {
-            boundaries.removeAll(FxTypeRow);
-        }
-        if (column == 9)
-        {
-            boundaries.removeAll(FxTypeRow);
+            boundaries.removeAll(FxGap);
         }
         p.setPen(QPen(line, 1));
         for (int row : std::as_const(boundaries))
         {
-            int y = (m_grid->cellRect(row, column).bottom() + m_grid->cellRect(row + 1, column).top() + 1) / 2;
+            int y = m_grid->cellRect(row, column).center().y();
             p.drawLine(QPointF(strip.left() + 3, y + 0.5), QPointF(strip.right() - 3, y + 0.5));
         }
     }
@@ -590,9 +600,12 @@ void MixPage::updateSolo()
     }
 
     bool active = m_device->isReady() && !soloed.isEmpty();
-    m_soloIndicator->setEnabled(active);
-    m_soloIndicator->setStyleSheet(active ? "QLabel { background: #d08000; color: black; font-weight: bold; }"
-                                          : "QLabel { color: palette(mid); }");
+    // off: an unlit lamp, outlined and dimmed but readable; the same border and weight keep the size steady
+    m_soloIndicator->setStyleSheet(
+        active ? "QLabel { background: #d08000; color: black; font-weight: bold; border: 1px solid #d08000;"
+                 " border-radius: 3px; }"
+               : "QLabel { background: rgba(128, 128, 128, 40); color: rgba(128, 128, 128, 200); font-weight: bold;"
+                 " border: 1px solid rgba(128, 128, 128, 110); border-radius: 3px; }");
     m_soloIndicator->setToolTip(active ? tr("Soloed: %1. The other channels of this mix are muted.")
                                              .arg(soloed.join(", "))
                                        : tr("Nothing is soloed in this mix"));

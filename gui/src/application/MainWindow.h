@@ -23,6 +23,7 @@ public:
     ~MainWindow() override;
 
     void showTab(int index);
+    UR44::Device* device() const { return m_device; }
 
 signals:
     /// The device state was loaded (and the pages show it)

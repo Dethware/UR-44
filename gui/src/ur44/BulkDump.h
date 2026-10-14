@@ -46,6 +46,10 @@ struct BulkDump
 
     /// Decodes a payload; nullopt (with the reason in `error`) if it's malformed
     static std::optional<BulkDump> decode(const QByteArray& payload, QString* error = nullptr);
+
+    /// Encodes `groups` with the values in `values` / `arrays` (the inverse of decode). Missing values are 0;
+    /// arrays are padded with zeros or cut to the item's size.
+    QByteArray encode() const;
 };
 
 }

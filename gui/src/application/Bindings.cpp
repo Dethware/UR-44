@@ -5,7 +5,9 @@
 #include <QComboBox>
 #include <QDebug>
 #include <QEvent>
+#include <QHelpEvent>
 #include <QLabel>
+#include <QToolTip>
 
 #include "Device.h"
 #include "Parameters.h"
@@ -59,6 +61,79 @@ const Parameter* watch(QWidget* widget, Device* device, const QString& name, uin
     return p;
 }
 
+/// The full text of a value: label and unit, with -INF as "-∞"
+QString fullText(const Parameter* p, int32_t v)
+{
+    return *p->unit ? p->label(v) + ' ' + QLatin1String(p->unit) : p->label(v);
+}
+
+/// describe()'s text, kept on the slider
+class SliderInfo : public QObject
+{
+public:
+    explicit SliderInfo(QObject* parent) : QObject(parent) {}
+    QString title;
+    QString description;
+    Format format;
+};
+
+SliderInfo* infoOf(const QObject* slider)
+{
+    for (QObject* child : slider->children())
+    {
+        if (auto* info = dynamic_cast<SliderInfo*>(child))
+        {
+            return info;
+        }
+    }
+    return nullptr;
+}
+
+/// Shows a bound slider's tooltip (on the slider and its value label), composed when it's asked for
+class SliderTip : public QObject
+{
+public:
+    SliderTip(QAbstractSlider* slider, const Parameter* p) : QObject(slider), m_slider(slider), m_p(p) {}
+
+    QString text() const
+    {
+        const SliderInfo* info = infoOf(m_slider);
+        auto value = [this, info](int32_t v) { return info && info->format ? info->format(v) : fullText(m_p, v); };
+        QStringList lines;
+        if (info && !info->title.isEmpty())
+        {
+            lines << "<b>" + info->title.toHtmlEscaped() + "</b>";
+        }
+        if (info && !info->description.isEmpty())
+        {
+            lines << info->description.toHtmlEscaped();
+        }
+        lines << QObject::tr("Range: %1 \u2013 %2").arg(value(m_p->min), value(m_p->max)).toHtmlEscaped();
+        if (m_slider->isEnabled())
+        {
+            lines << QObject::tr("Value: %1").arg(value(m_slider->value())).toHtmlEscaped();
+        }
+        lines << "<i>" + QObject::tr("Double-click to reset to %1").arg(value(m_p->defaultValue)).toHtmlEscaped() + "</i>";
+        return "<p style='white-space:pre'>" + lines.join("<br>") + "</p>";
+    }
+
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() == QEvent::ToolTip)
+        {
+            auto* help = static_cast<QHelpEvent*>(event);
+            QToolTip::showText(help->globalPos(), text(), static_cast<QWidget*>(watched));
+            return true;
+        }
+        return false;
+    }
+
+private:
+    QAbstractSlider* m_slider;
+    const Parameter* m_p;
+};
+
 /// Resets a slider to a value on double-click
 class DoubleClickReset : public QObject
 {
@@ -81,7 +156,8 @@ private:
 };
 }
 
-void slider(QAbstractSlider* slider, Device* device, const QString& name, uint16_t index, QLabel* valueLabel)
+void slider(QAbstractSlider* slider, Device* device, const QString& name, uint16_t index, QLabel* valueLabel,
+            Setter setter, bool withUnit)
 {
     const Parameter* p = Parameters::instance().byName(name);
     if (p)
@@ -89,17 +165,21 @@ void slider(QAbstractSlider* slider, Device* device, const QString& name, uint16
         slider->setRange(p->min, p->max);
         slider->setPageStep(qMax(1, (p->max - p->min) / 10));
         slider->installEventFilter(new DoubleClickReset(slider, p->defaultValue));
+        auto* tip = new SliderTip(slider, p);
+        slider->installEventFilter(tip);
+        if (valueLabel)
+        {
+            valueLabel->installEventFilter(tip);
+        }
     }
-    auto show = [slider, valueLabel, p](int32_t v) {
+    auto show = [slider, valueLabel, p, withUnit](int32_t v) {
         if (!p)
         {
             return;
         }
-        slider->setToolTip(p->text(v));
         if (valueLabel)
         {
-            valueLabel->setText(p->label(v));
-            valueLabel->setToolTip(p->text(v));
+            valueLabel->setText(withUnit ? fullText(p, v) : p->label(v));
         }
     };
     p = watch(slider, device, name, index, [slider, show](int32_t v) {
@@ -111,10 +191,29 @@ void slider(QAbstractSlider* slider, Device* device, const QString& name, uint16
     {
         return;
     }
-    QObject::connect(slider, &QAbstractSlider::valueChanged, slider, [device, p, index, show](int v) {
-        device->setParameter(p->id, index, v);
+    QObject::connect(slider, &QAbstractSlider::valueChanged, slider, [device, p, index, show, setter](int v) {
+        if (setter)
+        {
+            setter(v);
+        }
+        else
+        {
+            device->setParameter(p->id, index, v);
+        }
         show(v);
     });
+}
+
+void describe(QAbstractSlider* slider, const QString& title, const QString& description, Format format)
+{
+    SliderInfo* info = infoOf(slider);
+    if (!info)
+    {
+        info = new SliderInfo(slider);
+    }
+    info->title = title;
+    info->description = description;
+    info->format = std::move(format);
 }
 
 void toggle(QAbstractButton* button, Device* device, const QString& name, uint16_t index, bool inverted,
@@ -144,7 +243,7 @@ void toggle(QAbstractButton* button, Device* device, const QString& name, uint16
     });
 }
 
-void combo(QComboBox* combo, Device* device, const QString& name, uint16_t index)
+void combo(QComboBox* combo, Device* device, const QString& name, uint16_t index, Setter setter)
 {
     const Parameter* p = Parameters::instance().byName(name);
     if (p)
@@ -163,8 +262,16 @@ void combo(QComboBox* combo, Device* device, const QString& name, uint16_t index
     {
         return;
     }
-    QObject::connect(combo, &QComboBox::activated, combo, [combo, device, p, index](int i) {
-        device->setParameter(p->id, index, combo->itemData(i).toInt());
+    QObject::connect(combo, &QComboBox::activated, combo, [combo, device, p, index, setter](int i) {
+        int32_t v = combo->itemData(i).toInt();
+        if (setter)
+        {
+            setter(v);
+        }
+        else
+        {
+            device->setParameter(p->id, index, v);
+        }
     });
 }
 

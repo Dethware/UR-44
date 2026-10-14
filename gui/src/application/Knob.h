@@ -19,8 +19,12 @@ class Knob : public QAbstractSlider
 public:
     explicit Knob(const QColor& color, QWidget* parent = nullptr);
 
-    QSize sizeHint() const override { return QSize(64, 64); }
-    QSize minimumSizeHint() const override { return QSize(28, 28); }
+    /// Shorter than wide: the sweep is open at the bottom, so the space below it is cut off
+    QSize sizeHint() const override { return QSize(64, 56); }
+    QSize minimumSizeHint() const override { return QSize(28, 25); }
+
+    /// The height the knob needs, as a fraction of its diameter
+    static constexpr double HEIGHT_RATIO = 0.87;
 
     /// Pixels of mouse travel for the whole range
     static constexpr int DRAG_PIXELS = 150;
