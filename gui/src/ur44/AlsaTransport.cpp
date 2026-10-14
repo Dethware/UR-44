@@ -81,6 +81,13 @@ bool AlsaTransport::open(const QString& port, QString* error)
         connect(notifier, &QSocketNotifier::activated, this, &AlsaTransport::readAvailable);
         m_notifiers.append(notifier);
     }
+    // Start the input stream now: snd-usb-audio only starts reading from the device on the first read (or poll),
+    // and a reply that arrives before that is lost. The first request would then go unanswered.
+    char scratch[256];
+    while (snd_rawmidi_read(m_in, scratch, sizeof(scratch)) > 0)
+    {
+        // whatever was pending belongs to a previous owner of the port
+    }
     qDebug() << "Opened" << port;
     return true;
 }
