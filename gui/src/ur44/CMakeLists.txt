@@ -12,6 +12,9 @@ qt_add_library(ur44 STATIC
     Parameters.h
     Parameters.cpp
 
+    ReverbTime.h
+    ReverbTime.cpp
+
     Transport.h
 
     AlsaTransport.h

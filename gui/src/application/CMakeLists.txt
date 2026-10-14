@@ -14,8 +14,8 @@ qt_add_executable(ur44-control
     Bindings.h
     Bindings.cpp
 
-    ChannelStrip.h
-    ChannelStrip.cpp
+    Knob.h
+    Knob.cpp
 
     DevicePage.h
     DevicePage.cpp

@@ -16,15 +16,9 @@ DevicePage::DevicePage(Device* device, QWidget* parent) : QWidget(parent)
 {
     auto* layout = new QVBoxLayout(this);
 
+    // PHONES 2 and the REV-X send source are on the mix pages, like in dspMixFx
     auto* routing = new QGroupBox(tr("Routing"), this);
     auto* routingForm = new QFormLayout(routing);
-    auto* phones2 = new QComboBox(routing);
-    Bindings::combo(phones2, device, "PatchAuxPhoneOutput", 0);
-    routingForm->addRow(tr("PHONES 2 source:"), phones2);
-    auto* fxSend = new QComboBox(routing);
-    Bindings::combo(fxSend, device, "PatchFxSend", 0);
-    fxSend->setToolTip(tr("Which mix the channels' REV-X sends belong to"));
-    routingForm->addRow(tr("REV-X send from:"), fxSend);
     auto* loopback = new QCheckBox(tr("Loopback"), routing);
     loopback->setToolTip(tr("Mix MIX 1 into the signal recorded by the computer (for streaming)"));
     Bindings::toggle(loopback, device, "PatchLoopbackMode", 0);

@@ -8,8 +8,8 @@ class Device;
 }
 
 /*
- * Device-wide settings: output routing, loopback, LINE 5/6 level, plus read-only status (+48V switches,
- * sample rate, firmware, port).
+ * Device-wide settings: loopback, LINE 5/6 level, plus read-only status (+48V switches, sample rate, firmware,
+ * port). Routing that dspMixFx shows per mix (PHONES 2, REV-X send) is on the mix pages.
  */
 class DevicePage : public QWidget
 {

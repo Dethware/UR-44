@@ -88,6 +88,15 @@ void Device::setState(State state)
     emit stateChanged(state);
 }
 
+void Device::setLastError(const QString& error)
+{
+    if (error != m_lastError)
+    {
+        m_lastError = error;
+        emit lastErrorChanged(error);
+    }
+}
+
 void Device::tryConnect()
 {
     if (!m_running)
@@ -97,14 +106,14 @@ void Device::tryConnect()
     m_currentPort = m_port.isEmpty() ? m_transport->detect() : m_port;
     if (m_currentPort.isEmpty())
     {
-        m_lastError = tr("No UR44 found");
+        setLastError(tr("No UR44 found"));
         m_retryTimer.start();
         return;
     }
     QString error;
     if (!m_transport->open(m_currentPort, &error))
     {
-        m_lastError = error;
+        setLastError(error);
         m_retryTimer.start();
         return;
     }
@@ -122,7 +131,7 @@ void Device::tryConnect()
 void Device::disconnectWithError(const QString& error)
 {
     qWarning() << "Device disconnected:" << error;
-    m_lastError = error;
+    setLastError(error);
     m_replyTimer.stop();
     m_confirmTimer.stop();
     m_transport->close();

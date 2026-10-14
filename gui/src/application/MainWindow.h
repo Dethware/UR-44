@@ -22,6 +22,12 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
+    void showTab(int index);
+
+signals:
+    /// The device state was loaded (and the pages show it)
+    void deviceLoaded();
+
 protected:
     void showEvent(QShowEvent* event) override;
     void hideEvent(QHideEvent* event) override;

@@ -11,6 +11,16 @@ QString Parameter::text(int32_t value) const
     return *unit ? t + ' ' + QLatin1String(unit) : t;
 }
 
+QString Parameter::label(int32_t value) const
+{
+    if (!labels || !isValid(value))
+    {
+        return QString::number(value);
+    }
+    QString t = QString::fromLatin1(labels[value - min]);
+    return t == QLatin1String("-INF") ? QStringLiteral("-\u221E") : t;
+}
+
 const Parameters& Parameters::instance()
 {
     static const Parameters parameters;

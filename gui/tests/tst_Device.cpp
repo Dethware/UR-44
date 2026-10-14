@@ -196,15 +196,19 @@ private slots:
     void connect_retriesWhenMissingOrBusy()
     {
         makeDevice();
+        QSignalSpy errors(m_device.get(), &Device::lastErrorChanged);
         m_fake->detectResult.clear();
         m_device->start();
         QCOMPARE(m_device->state(), Device::State::Disconnected);
         QCOMPARE(m_device->lastError(), QString("No UR44 found"));
+        QCOMPARE(errors.size(), 1);
 
         m_fake->detectResult = "hw:9,0,1";
         m_fake->openFails = true;
         QTRY_VERIFY_WITH_TIMEOUT(m_fake->opens >= 1, Device::RETRY_MS * 2);
         QVERIFY(m_device->lastError().contains("in use"));
+        // the state stayed Disconnected, but the new reason is announced
+        QCOMPARE(errors.size(), 2);
 
         m_fake->openFails = false;
         QTRY_COMPARE_WITH_TIMEOUT(m_device->state(), Device::State::Ready, Device::RETRY_MS * 2);

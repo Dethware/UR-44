@@ -39,7 +39,9 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->statusBar->addWidget(m_deviceStatusLabel, 1);
 
     connect(m_device, &Device::stateChanged, this, &MainWindow::updateDeviceStatus);
+    connect(m_device, &Device::lastErrorChanged, this, &MainWindow::updateDeviceStatus);
     connect(m_device, &Device::stateLoaded, this, &MainWindow::pointMetersAtVisibleMix);
+    connect(m_device, &Device::stateLoaded, this, &MainWindow::deviceLoaded);
     connect(m_device, &Device::meterFrame, this, &MainWindow::showMeters);
     connect(m_ui->tabs, &QTabWidget::currentChanged, this, &MainWindow::pointMetersAtVisibleMix);
 
@@ -52,6 +54,14 @@ MainWindow::~MainWindow()
     // The device would otherwise be destroyed last, after the pages and status bar it notifies
     delete m_device;
     m_device = nullptr;
+}
+
+void MainWindow::showTab(int index)
+{
+    if (index >= 0 && index < m_ui->tabs->count())
+    {
+        m_ui->tabs->setCurrentIndex(index);
+    }
 }
 
 void MainWindow::showEvent(QShowEvent* event)

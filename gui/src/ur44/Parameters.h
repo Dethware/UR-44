@@ -35,6 +35,8 @@ struct Parameter
     int32_t clamp(int32_t value) const { return std::clamp(value, min, max); }
     /// "0.00 dB", "L16", "On", ...
     QString text(int32_t value) const;
+    /// text() without the unit, with -INF as "-∞": for compact captions ("0.00", "-∞", "C")
+    QString label(int32_t value) const;
     /// Wire value (u32) -> value, sign-extended for signed parameters
     int32_t fromWire(uint32_t raw) const { return int32_t(raw); }
 };

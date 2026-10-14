@@ -1,6 +1,7 @@
 #include <QtTest>
 
 #include "Parameters.h"
+#include "ReverbTime.h"
 
 #include <cstring>
 
@@ -54,6 +55,29 @@ private slots:
         QCOMPARE(p["PatchAuxPhoneOutput"].text(1), QString("MIX 2 L/R"));
         // a parameter without labels shows the number
         QCOMPARE(p["FxRevRoomSize"].text(7), QString("7"));
+    }
+
+    void label_isCompact()
+    {
+        const Parameters& p = Parameters::instance();
+        QCOMPARE(p["MasterMixBus1Level"].label(103), QString("0.00"));
+        QCOMPARE(p["MasterMixBus1Level"].label(0), QString::fromUtf8("-\u221E"));
+        QCOMPARE(p["ChSendMixBus1Pan"].label(0), QString("C"));
+    }
+
+    // The ranges the operation manual gives for REV-X time (page 13)
+    void reverbTime_matchesManual()
+    {
+        using namespace UR44::ReverbTime;
+        QCOMPARE(text(0, 0, 0), QString("0.103"));  // Hall minimum
+        QCOMPARE(text(0, 31, 69), QString("31.0")); // Hall maximum
+        QCOMPARE(text(1, 0, 0), QString("0.152"));  // Room
+        QCOMPARE(text(1, 31, 69), QString("45.3"));
+        QCOMPARE(text(2, 0, 0), QString("0.176"));  // Plate
+        QCOMPARE(text(2, 31, 69), QString("52.0"));
+        // at the reference room size the base table applies unchanged
+        QCOMPARE(seconds(0, 30, 7), 1.0);
+        QCOMPARE(seconds(0, 0, 70), 0.0);
     }
 
     void clamp_andWire()

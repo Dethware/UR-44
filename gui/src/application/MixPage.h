@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-class ChannelStrip;
+class LevelMeter;
 class QLabel;
 class QPushButton;
 
@@ -15,8 +15,9 @@ class Device;
 }
 
 /*
- * One of the two DSP mixes (MIX 1: MAIN / LINE 1/2 / PHONES 1, MIX 2: LINE 3/4, PHONES 2 optionally):
- * the six inputs, the DAW return, the REV-X return and the master.
+ * One of the two DSP mixes (MIX 1: MAIN / LINE 1/2 / PHONES 1, MIX 2: LINE 3/4, PHONES 2 optionally), laid out
+ * like dspMixFx: one column per input, the DAW return and the master (with REV-X), and the PHONES selection.
+ * Controls of the same kind share a row.
  *
  * The device meters the DAW and master of one mix at a time (PatchDawMeter / PatchMasterMeter); this page shows
  * them only while they point at its mix. MainWindow points them at the visible mix.
@@ -39,15 +40,25 @@ public:
 signals:
     void soloActiveChanged(bool active);
 
+protected:
+    void paintEvent(QPaintEvent* event) override;
+
 private:
+    void addInputColumn(class QGridLayout* grid, int column, uint16_t ch);
+    void addDawColumn(class QGridLayout* grid, int column);
+    void addMasterColumn(class QGridLayout* grid, int column);
+    QWidget* makeSidePanel();
     void updateSolo();
     void clearSolo();
 
     int m_bus;
     UR44::Device* m_device;
-    QList<ChannelStrip*> m_inputs;
-    ChannelStrip* m_daw = nullptr;
-    ChannelStrip* m_master = nullptr;
+    QList<LevelMeter*> m_inputMeters;
+    LevelMeter* m_dawMeter = nullptr;
+    LevelMeter* m_masterMeter = nullptr;
+
+    class QGridLayout* m_grid = nullptr;
+    QList<int> m_stripColumns;
 
     QLabel* m_soloIndicator = nullptr;
     QPushButton* m_clearSolo = nullptr;

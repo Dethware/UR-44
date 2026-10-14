@@ -79,6 +79,8 @@ public:
 
 signals:
     void stateChanged(UR44::Device::State state);
+    /// lastError() changed, e.g. a retry failed differently (the state stays Disconnected)
+    void lastErrorChanged(const QString& error);
     /// The whole state was (re)loaded; every value may have changed
     void stateLoaded();
     void parameterChanged(uint16_t id, uint16_t index, int32_t value);
@@ -86,6 +88,7 @@ signals:
 
 private:
     void setState(State state);
+    void setLastError(const QString& error);
     void tryConnect();
     void disconnectWithError(const QString& error);
     void onReceived(const QByteArray& bytes);
