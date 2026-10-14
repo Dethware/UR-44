@@ -302,7 +302,8 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
     auto* sendLabel = caption(QString(), this);
     Bindings::slider(send, device, "ChSendFxBusLevel", ch, sendLabel, {}, true);
     Bindings::describe(send, tr("REV-X Send for IN %1").arg(ch + 1),
-                       tr("Adjusts the signal level which is sent to REV-X.\nShared by MIX 1 and MIX 2."));
+                       tr("Adjusts the signal level which is sent to REV-X.\n"
+                          "One send per input: it feeds REV-X from the mix selected with SEND."));
     addKnob(grid, send, sendLabel, SendRow, column);
 
     auto* pan = new Knob(PAN_COLOR, this);
@@ -402,8 +403,8 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     auto* title = caption("REV-X", revx);
     rl->addWidget(title, 0, 0, 1, 2);
 
-    // Inferred from the manual ("turns REV-X on/off; can be on for either MIX 1 or MIX 2"): lit when REV-X isn't
-    // bypassed and the channels' REV-X sends belong to this mix (PatchFxSend)
+    // One REV-X: PatchFxSend picks the mix whose channel sends feed it (SEND), and each mix has its own return
+    // switch, FxRevMixBus<n>Onf (RTN). Both found by ear; both returns can be on at once.
     auto* sendOn = textButton("SEND", REVX_COLOR, QString(), revx);
     sendOn->setFixedWidth(48);
     auto* edit = squareButton("e", QColor(200, 200, 200), tr("Edit REV-X"), revx);
@@ -411,29 +412,23 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     connect(edit, &QToolButton::clicked, this, [this, device]() { EffectEditors::openReverb(device, window()); });
     connect(device, &Device::stateChanged, edit, [edit, device]() { edit->setEnabled(device->isReady()); });
     edit->setEnabled(device->isReady());
-    auto sendActive = [device, bus]() {
-        return !device->value("FxRevBypass").value_or(1) && device->value("PatchFxSend").value_or(-1) == bus - 1;
-    };
-    auto refreshSend = [sendOn, sendActive, device, bus]() {
+    auto isSource = [device, bus]() { return device->value("PatchFxSend").value_or(-1) == bus - 1; };
+    auto refreshSend = [sendOn, isSource, device, bus]() {
         sendOn->setEnabled(device->isReady());
         QSignalBlocker blocker(sendOn);
-        sendOn->setChecked(sendActive());
-        sendOn->setToolTip(sendActive() ? tr("REV-X is on, fed by the MIX %1 channel sends (click to turn off)").arg(bus)
-                                        : tr("Click to feed REV-X from the MIX %1 channel sends").arg(bus));
+        sendOn->setChecked(isSource());
+        sendOn->setToolTip(isSource()
+                               ? tr("REV-X is fed from MIX %1: its channels' REV-X sends").arg(bus)
+                               : tr("Click to feed REV-X from MIX %1 instead of MIX %2").arg(bus).arg(3 - bus));
     };
     connect(sendOn, &QToolButton::clicked, this, [=]() {
-        if (sendActive())
-        {
-            device->setParameter("FxRevBypass", 0, 1);
-        }
-        else
+        // like a radio button: one of the mixes is always the source
+        if (!isSource())
         {
             device->setParameter("PatchFxSend", 0, bus - 1);
-            device->setParameter("FxRevBypass", 0, 0);
         }
         refreshSend();
     });
-    Bindings::follow(sendOn, device, "FxRevBypass", 0, [refreshSend](int32_t) { refreshSend(); });
     Bindings::follow(sendOn, device, "PatchFxSend", 0, [refreshSend](int32_t) { refreshSend(); });
     connect(device, &Device::stateChanged, sendOn, refreshSend);
     refreshSend();
@@ -464,13 +459,16 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
         Bindings::follow(timeLabel, device, name, 0, [showTime](int32_t) { showTime(); });
     }
     rl->addWidget(caption(tr("TIME"), revx), 3, 0);
-    rl->addWidget(caption(tr("RTN"), revx), 3, 1);
+    auto* returnOn = textButton(tr("RTN"), RETURN_COLOR, tr("REV-X return into MIX %1 on/off").arg(bus), revx);
+    Bindings::toggle(returnOn, device, "FxRevMixBus" + b + "Onf", 0);
+    rl->addWidget(returnOn, 3, 1, Qt::AlignHCenter);
     rl->addWidget(time, 4, 0, Qt::AlignHCenter);
     auto* rtn = new Knob(RETURN_COLOR, revx);
     auto* rtnLabel = caption(QString(), revx);
     Bindings::slider(rtn, device, "FxRevBus" + b + "Level", 0, rtnLabel, {}, true);
     Bindings::describe(rtn, tr("REV-X Return for MIX %1").arg(m_bus),
-                       tr("Adjusts the level of the reverb signal returned to MIX %1.").arg(m_bus));
+                       tr("Adjusts the level of the reverb signal returned to MIX %1 (switched with RTN).")
+                           .arg(m_bus));
     rl->addWidget(rtn, 4, 1, Qt::AlignHCenter);
     rl->addWidget(timeLabel, 5, 0);
     rl->addWidget(rtnLabel, 5, 1);

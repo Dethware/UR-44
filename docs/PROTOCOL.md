@@ -235,6 +235,24 @@ parameters has to (implemented in `gui/src/ur44/Effects.cpp`):
 Other parameters answer normally, and the bulk dump has the right value. So after an FX assign/unassign, read
 the state with a dump (`Device::resync()`), not with parameter reads.
 
+## REV-X routing
+
+* One REV-X, one input, two returns (**confirmed by ear**):
+  * `PatchFxSend` (0 = MIXBUS 1, 1 = MIXBUS 2) picks the mix that feeds REV-X: the `ChSendFxBusLevel` sends of
+    that mix's channels. The GUI's SEND button (lit on the source mix).
+  * `FxRevMixBus{1,2}Onf` switches the REV-X return into MIX 1/2, at `FxRevBus{1,2}Level`. Both can be on at
+    once, so a reverb fed from one mix can be heard in both. With it off the mix has no reverb. The GUI's RTN button.
+* `FxRevBypass` (0/1) has no audible effect either (**by ear**): the reverb stays on with it set. The manual's
+  dspMixFx window has no REV-X on/off besides SEND, and memapi only reads it when it packs the whole mixer state
+  (`CsmdExModel::InitMixer`). Likely a plug-in-side setting (like `FxRevBal`) that the device only stores: its
+  state survives power cycles, so the software (e.g. the Cubase extension syncing the REV-X plug-in) can get it
+  back from the device. Not exposed.
+* `FxRevBal` (0..127, "%") has no audible effect: 1 and 127 sound the same (**by ear**). The manual says the
+  REV-X MIX and OUTPUT controls "are only available in the Plug-in version" (the Basic FX Suite REV-X, whose
+  manual pictures them). Not exposed.
+* There's no REV-X output meter: all 22 meter pairs are accounted for (see "Meter frame"), and the OUTPUT meter
+  is also plug-in only.
+
 ## Sweet Spot Data (morph tables)
 
 * Presets are `.ssd` files (512 bytes): `SSMD`, version 1 (u32 LE at 8), id ("0002", 16 bytes at 0x10), then 9 points
