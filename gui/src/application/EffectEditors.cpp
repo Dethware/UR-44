@@ -3,6 +3,7 @@
 #include <QComboBox>
 #include <QGridLayout>
 #include <QGroupBox>
+#include <QHash>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPointer>
@@ -143,7 +144,7 @@ ChannelStripEditor::ChannelStripEditor(Device* device, uint16_t channel, uint16_
     // MORPH moves the compressor and EQ through the Sweet Spot Data's points: the host computes the values
     Bindings::slider(morphKnob, device, "FxMorphValue", strip, morphValue,
                      [device, strip](int32_t v) { Effects::setMorph(*device, strip, v); });
-    Bindings::describe(morphKnob, tr("MORPH"), tr("Morphs the compressor and EQ between the Sweet Spot Data's settings."));
+    Bindings::describe(morphKnob, tr("Morph"), tr("Morphs the compressor and EQ between the Sweet Spot Data's settings."));
 
     // Sweet Spot Data: the built-in presets and those in the configured folder; the device's current one is selected
     auto* sweetSpot = new QComboBox(this);
@@ -201,7 +202,8 @@ ChannelStripEditor::ChannelStripEditor(Device* device, uint16_t channel, uint16_
     top->addWidget(caption(tr("SWEET SPOT DATA"), this));
     top->addWidget(sweetSpot);
     top->addStretch();
-    top->addWidget(knobControl(tr("TOTAL GAIN"), device, "FxEqPeqGain", strip, STRIP_COLOR, this));
+    top->addWidget(knobControl(tr("TOTAL GAIN"), tr("Total Gain"), tr("Adjusts the overall gain of the Channel Strip."),
+                               device, "FxEqPeqGain", strip, STRIP_COLOR, this));
     m_output = new LevelMeter(1, this);
     m_output->setFixedHeight(70);
     m_output->setToolTip(tr("Channel Strip output"));
@@ -219,17 +221,42 @@ ChannelStripEditor::ChannelStripEditor(Device* device, uint16_t channel, uint16_
     m_gainReduction->setFixedWidth(160);
     cl->addWidget(m_gainReduction, 0, 1, 1, 3, Qt::AlignLeft);
     int col = 0;
-    for (auto [title, name] : {std::pair{tr("DRIVE"), "FxCompDrive"}, {tr("ATTACK"), "FxCompAttack"},
-                               {tr("RELEASE"), "FxCompRelease"}, {tr("RATIO"), "FxCompRatio"}})
+    struct Control
     {
-        cl->addWidget(knobControl(title, device, name, strip, STRIP_COLOR, comp), 1, col++);
+        QString title;
+        QString name;
+        QString description;
+        const char* parameter;
+    };
+    for (const Control& c :
+         {Control{tr("DRIVE"), tr("Compressor Drive"),
+                  tr("Adjusts how strongly the compressor works. The higher the value, the stronger the effect."),
+                  "FxCompDrive"},
+          Control{tr("ATTACK"), tr("Compressor Attack"),
+                  tr("Adjusts how fast the compressor reacts once the signal gets loud."), "FxCompAttack"},
+          Control{tr("RELEASE"), tr("Compressor Release"),
+                  tr("Adjusts how fast the compressor lets go once the signal gets quieter."), "FxCompRelease"},
+          Control{tr("RATIO"), tr("Compressor Ratio"),
+                  tr("Adjusts how much the signal above the threshold is reduced."), "FxCompRatio"}})
+    {
+        cl->addWidget(knobControl(c.title, c.name, c.description, device, c.parameter, strip, STRIP_COLOR, comp), 1,
+                      col++);
     }
     cl->addWidget(comboControl(tr("KNEE"), combo(device, "FxCompKnee", strip, comp), comp), 1, col++);
     col = 0;
-    for (auto [title, name] : {std::pair{tr("SIDE CHAIN Q"), "FxCompScQual"}, {tr("SIDE CHAIN F"), "FxCompScFreq"},
-                               {tr("SIDE CHAIN G"), "FxCompScGain"}})
+    for (const Control& c :
+         {Control{tr("SIDE CHAIN Q"), tr("Side Chain Q"),
+                  tr("Adjusts the bandwidth of the side chain filter, which shapes what the compressor reacts to."),
+                  "FxCompScQual"},
+          Control{tr("SIDE CHAIN F"), tr("Side Chain Frequency"),
+                  tr("Adjusts the centre frequency of the side chain filter."), "FxCompScFreq"},
+          Control{tr("SIDE CHAIN G"), tr("Side Chain Gain"),
+                  tr("Adjusts the gain of the side chain filter: boosting a range makes the compressor react more "
+                     "to it."),
+                  "FxCompScGain"}})
     {
-        cl->addWidget(knobControl(title, device, name, strip, STRIP_COLOR, comp), 2, col++);
+        cl->addWidget(knobControl(c.title, c.name, c.description, device, c.parameter, strip, STRIP_COLOR, comp), 2,
+                      col++);
     }
     layout->addWidget(comp);
 
@@ -240,23 +267,34 @@ ChannelStripEditor::ChannelStripEditor(Device* device, uint16_t channel, uint16_
     struct Band
     {
         QString title;
+        QString name;
+        QString kind; // what the band does, for the tooltips
         const char* q;
         const char* f;
         const char* g;
     };
     col = 0;
-    for (const Band& band : {Band{tr("LOW"), nullptr, "FxEqLsvFreq", "FxEqLsvGain"},
-                             Band{tr("MID"), "FxEqMidQual", "FxEqMidFreq", "FxEqMidGain"},
-                             Band{tr("HIGH"), nullptr, "FxEqHsvFreq", "FxEqHsvGain"}})
+    for (const Band& band :
+         {Band{tr("LOW"), tr("EQ Low"), tr("low shelving band (boosts or cuts everything below its frequency)"),
+               nullptr, "FxEqLsvFreq", "FxEqLsvGain"},
+          Band{tr("MID"), tr("EQ Mid"), tr("mid peaking band (boosts or cuts around its frequency)"), "FxEqMidQual",
+               "FxEqMidFreq", "FxEqMidGain"},
+          Band{tr("HIGH"), tr("EQ High"), tr("high shelving band (boosts or cuts everything above its frequency)"),
+               nullptr, "FxEqHsvFreq", "FxEqHsvGain"}})
     {
         auto* box = new QGroupBox(band.title, eq);
         auto* bl = new QHBoxLayout(box);
         if (band.q)
         {
-            bl->addWidget(knobControl("Q", device, band.q, strip, STRIP_COLOR, box));
+            bl->addWidget(knobControl("Q", tr("%1 Q").arg(band.name),
+                                      tr("Adjusts the bandwidth of the %1: higher is narrower.").arg(band.kind),
+                                      device, band.q, strip, STRIP_COLOR, box));
         }
-        bl->addWidget(knobControl("F", device, band.f, strip, STRIP_COLOR, box));
-        bl->addWidget(knobControl("G", device, band.g, strip, STRIP_COLOR, box));
+        bl->addWidget(knobControl("F", tr("%1 Frequency").arg(band.name),
+                                  tr("Adjusts the frequency of the %1.").arg(band.kind), device, band.f, strip,
+                                  STRIP_COLOR, box));
+        bl->addWidget(knobControl("G", tr("%1 Gain").arg(band.name), tr("Adjusts the gain of the %1.").arg(band.kind),
+                                  device, band.g, strip, STRIP_COLOR, box));
         el->addWidget(box, 1, col++);
     }
     layout->addWidget(eq);
@@ -319,30 +357,47 @@ GuitarAmpEditor::GuitarAmpEditor(Device* device, QWidget* parent) : QDialog(pare
         const char* parameter;
         bool isChoice = false;
     };
-    auto page = [&](const QList<Control>& controls) {
+    // what each knob does; the same knob title means the same thing on every model
+    const QHash<QString, QString> descriptions{
+        {tr("VOLUME"), tr("Adjusts the input level of the amp.")},
+        {tr("DISTORTION"), tr("Adjusts the amount of distortion.")},
+        {tr("GAIN"), tr("Adjusts the pre-amp gain: the amount of distortion.")},
+        {tr("MASTER"), tr("Adjusts the level going from the pre-amp to the power amp: more adds power amp "
+                          "distortion.")},
+        {tr("TREBLE"), tr("Adjusts the tone of the high range.")},
+        {tr("MIDDLE"), tr("Adjusts the tone of the middle range.")},
+        {tr("BASS"), tr("Adjusts the tone of the low range.")},
+        {tr("PRESENCE"), tr("Adjusts the tone of the highest range, for brilliance and edge.")},
+        {tr("SPEED"), tr("Adjusts the speed of the chorus or vibrato.")},
+        {tr("DEPTH"), tr("Adjusts the depth of the chorus or vibrato.")},
+        {tr("BLEND"), tr("Adjusts the balance between the dry sound and the chorus or vibrato.")},
+        {tr("OUTPUT"), tr("Adjusts the output level of the amp.")},
+    };
+    auto page = [&](const QString& model, const QList<Control>& controls) {
         auto* w = new QWidget(pages);
         auto* l = new QHBoxLayout(w);
         for (const Control& c : controls)
         {
             l->addWidget(c.isChoice ? comboControl(c.title, combo(device, c.parameter, 0, w), w)
-                                    : knobControl(c.title, device, c.parameter, 0, AMP_COLOR, w));
+                                    : knobControl(c.title, tr("%1 %2").arg(model, c.title), descriptions.value(c.title),
+                                                  device, c.parameter, 0, AMP_COLOR, w));
         }
         l->addStretch();
         pages->addWidget(w);
     };
     // the controls each model's panel has (operation manual pages 21-23)
-    page({{tr("VOLUME"), "GtrFxCleanVolume"}, {tr("DISTORTION"), "GtrFxCleanDistortion"},
+    page(tr("Clean"), {{tr("VOLUME"), "GtrFxCleanVolume"}, {tr("DISTORTION"), "GtrFxCleanDistortion"},
           {tr("TREBLE"), "GtrFxCleanTreble"}, {tr("MIDDLE"), "GtrFxCleanMiddle"}, {tr("BASS"), "GtrFxCleanBass"},
           {tr("PRESENCE"), "GtrFxCleanHiTreble"}, {tr("Cho/OFF/Vib"), "GtrFxCleanChorus", true},
           {tr("SPEED"), "GtrFxCleanVibSpeed"}, {tr("DEPTH"), "GtrFxCleanVibDepth"}, {tr("BLEND"), "GtrFxCleanBlend"},
           {tr("OUTPUT"), "GtrFxCleanOutput"}});
-    page({{tr("Normal/Bright"), "GtrFxCrunchType", true}, {tr("GAIN"), "GtrFxCrunchVolume"},
+    page(tr("Crunch"), {{tr("Normal/Bright"), "GtrFxCrunchType", true}, {tr("GAIN"), "GtrFxCrunchVolume"},
           {tr("TREBLE"), "GtrFxCrunchTreble"}, {tr("MIDDLE"), "GtrFxCrunchMiddle"}, {tr("BASS"), "GtrFxCrunchBass"},
           {tr("PRESENCE"), "GtrFxCrunchPresence"}, {tr("OUTPUT"), "GtrFxCrunchOutput"}});
-    page({{tr("High/Low"), "GtrFxLeadSensitivity", true}, {tr("GAIN"), "GtrFxLeadPreAmp"},
+    page(tr("Lead"), {{tr("High/Low"), "GtrFxLeadSensitivity", true}, {tr("GAIN"), "GtrFxLeadPreAmp"},
           {tr("MASTER"), "GtrFxLeadMaster"}, {tr("TREBLE"), "GtrFxLeadTreble"}, {tr("MIDDLE"), "GtrFxLeadMiddle"},
           {tr("BASS"), "GtrFxLeadBass"}, {tr("PRESENCE"), "GtrFxLeadPresence"}, {tr("OUTPUT"), "GtrFxLeadOutput"}});
-    page({{tr("AMP TYPE"), "GtrFxDriveType", true}, {tr("GAIN"), "GtrFxDriveGain"}, {tr("MASTER"), "GtrFxDriveMaster"},
+    page(tr("Drive"), {{tr("AMP TYPE"), "GtrFxDriveType", true}, {tr("GAIN"), "GtrFxDriveGain"}, {tr("MASTER"), "GtrFxDriveMaster"},
           {tr("TREBLE"), "GtrFxDriveTreble"}, {tr("MIDDLE"), "GtrFxDriveMiddle"}, {tr("BASS"), "GtrFxDriveBass"},
           {tr("PRESENCE"), "GtrFxDrivePresence"}, {tr("OUTPUT"), "GtrFxDriveOutput"}});
     Bindings::follow(pages, device, "GtrFxType", 0, [pages](int32_t type) { pages->setCurrentIndex(type); });
@@ -385,7 +440,8 @@ ReverbEditor::ReverbEditor(Device* device, QWidget* parent) : QDialog(parent)
     QLabel* timeValue = nullptr;
     grid->addWidget(knobControl(tr("REVERB TIME"), device, QString(), 0, REVX_COLOR, this, &time, &timeValue), 0, 0);
     Bindings::slider(time, device, "FxRevTime", 0);
-    Bindings::describe(time, tr("REVERB TIME"), tr("The range depends on the reverb type and room size."),
+    Bindings::describe(time, tr("REV-X Reverb Time"),
+                       tr("Adjusts how long the reverb lasts. The range depends on the reverb type and room size."),
                        [device](int32_t v) {
                            return ReverbTime::text(device->value("FxRevType").value_or(0),
                                                    device->value("FxRevRoomSize").value_or(0), v) + " s";
@@ -402,12 +458,33 @@ ReverbEditor::ReverbEditor(Device* device, QWidget* parent) : QDialog(parent)
     }
 
     int i = 1;
-    for (auto [title, name] : {std::pair{tr("INITIAL DELAY"), "FxRevIniDly"}, {tr("DECAY"), "FxRevDecay"},
-                               {tr("ROOM SIZE"), "FxRevRoomSize"}, {tr("DIFFUSION"), "FxRevDiff"},
-                               {tr("HPF"), "FxRevHpf"}, {tr("LPF"), "FxRevLpf"}, {tr("HI RATIO"), "FxRevHighRatio"},
-                               {tr("LOW RATIO"), "FxRevLowRatio"}, {tr("LOW FREQ"), "FxRevLowFreq"}})
+    struct Control
     {
-        grid->addWidget(knobControl(title, device, name, 0, REVX_COLOR, this), i / 5, i % 5);
+        QString title;
+        QString name;
+        QString description;
+        const char* parameter;
+    };
+    for (const Control& c : {
+             Control{tr("INITIAL DELAY"), tr("Initial Delay"),
+                     tr("Adjusts the time between the direct sound and the start of the reverb."), "FxRevIniDly"},
+             Control{tr("DECAY"), tr("Decay"), tr("Adjusts how the reverb fades out (its envelope)."), "FxRevDecay"},
+             Control{tr("ROOM SIZE"), tr("Room Size"),
+                     tr("Adjusts the size of the simulated room. It also scales the reverb time."), "FxRevRoomSize"},
+             Control{tr("DIFFUSION"), tr("Diffusion"), tr("Adjusts how much the reverb spreads out."), "FxRevDiff"},
+             Control{tr("HPF"), tr("High Pass Filter"), tr("Cuts the reverb below this frequency."), "FxRevHpf"},
+             Control{tr("LPF"), tr("Low Pass Filter"), tr("Cuts the reverb above this frequency."), "FxRevLpf"},
+             Control{tr("HI RATIO"), tr("High Ratio"),
+                     tr("Adjusts how long the high range reverberates, relative to the reverb time."),
+                     "FxRevHighRatio"},
+             Control{tr("LOW RATIO"), tr("Low Ratio"),
+                     tr("Adjusts how long the low range reverberates, relative to the reverb time."), "FxRevLowRatio"},
+             Control{tr("LOW FREQ"), tr("Low Frequency"), tr("Sets the frequency below which LOW RATIO applies."),
+                     "FxRevLowFreq"}})
+    {
+        grid->addWidget(knobControl(c.title, tr("REV-X %1").arg(c.name), c.description, device, c.parameter, 0,
+                                    REVX_COLOR, this),
+                        i / 5, i % 5);
         ++i;
     }
     layout->addLayout(grid);

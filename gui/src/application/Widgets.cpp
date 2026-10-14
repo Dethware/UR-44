@@ -73,4 +73,13 @@ QWidget* knobControl(const QString& title, UR44::Device* device, const QString& 
     return box;
 }
 
+QWidget* knobControl(const QString& title, const QString& name, const QString& description, UR44::Device* device,
+                     const QString& parameter, uint16_t index, const QColor& color, QWidget* parent)
+{
+    Knob* knob = nullptr;
+    QWidget* box = knobControl(title, device, parameter, index, color, parent, &knob);
+    Bindings::describe(knob, name, description);
+    return box;
+}
+
 }

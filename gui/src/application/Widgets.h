@@ -40,4 +40,8 @@ QLabel* caption(const QString& text, QWidget* parent);
  */
 QWidget* knobControl(const QString& title, UR44::Device* device, const QString& parameter, uint16_t index,
                      const QColor& color, QWidget* parent, Knob** knobOut = nullptr, QLabel** valueOut = nullptr);
+
+/// A knobControl() whose tooltip says what it does: `name` ("Compressor Attack") and `description`
+QWidget* knobControl(const QString& title, const QString& name, const QString& description, UR44::Device* device,
+                     const QString& parameter, uint16_t index, const QColor& color, QWidget* parent);
 }
