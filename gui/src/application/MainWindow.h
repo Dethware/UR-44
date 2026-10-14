@@ -35,6 +35,8 @@ protected:
 
 private:
     void updateDeviceStatus();
+    /// The status bar's activity section: idle, or writing to the device
+    void updateActivityStatus();
     /// Points the device's DAW / master meters at the visible mix
     void pointMetersAtVisibleMix();
     void showMeters(const QList<uint32_t>& frame);
@@ -46,4 +48,5 @@ private:
 
     // Device status, in the status bar
     class QLabel* m_deviceStatusLabel = nullptr;
+    class QLabel* m_activityLabel = nullptr;
 };

@@ -6,6 +6,7 @@
 #include "Device.h"
 #include "DevicePage.h"
 #include "MixPage.h"
+#include "ScenesPanel.h"
 
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
@@ -35,17 +36,29 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->tabs->setTabToolTip(0, tr("MAIN OUTPUT, LINE OUTPUT 1/2, PHONES 1"));
     m_ui->tabs->setTabToolTip(1, tr("LINE OUTPUT 3/4, and PHONES 2 if selected"));
 
+    // prepared scenes, next to the pages
+    auto* scenes = new ScenesPanel(m_device, m_ui->centralWidget);
+    scenes->setFixedWidth(190);
+    m_ui->gridLayout->addWidget(scenes, 0, 1);
+
     m_deviceStatusLabel = new QLabel(this);
     m_ui->statusBar->addWidget(m_deviceStatusLabel, 1);
+    m_activityLabel = new QLabel(this);
+    m_activityLabel->setToolTip(tr("Scenes and Sweet Spot Data take the device about 0.3 s each to apply; "
+                                   "changes made meanwhile are applied after them"));
+    m_ui->statusBar->addPermanentWidget(m_activityLabel);
 
     connect(m_device, &Device::stateChanged, this, &MainWindow::updateDeviceStatus);
     connect(m_device, &Device::lastErrorChanged, this, &MainWindow::updateDeviceStatus);
+    connect(m_device, &Device::busyChanged, this, &MainWindow::updateActivityStatus);
+    connect(m_device, &Device::stateChanged, this, &MainWindow::updateActivityStatus);
     connect(m_device, &Device::stateLoaded, this, &MainWindow::pointMetersAtVisibleMix);
     connect(m_device, &Device::stateLoaded, this, &MainWindow::deviceLoaded);
     connect(m_device, &Device::meterFrame, this, &MainWindow::showMeters);
     connect(m_ui->tabs, &QTabWidget::currentChanged, this, &MainWindow::pointMetersAtVisibleMix);
 
     updateDeviceStatus();
+    updateActivityStatus();
     m_device->start();
 }
 
@@ -105,6 +118,20 @@ void MainWindow::updateDeviceStatus()
             page->clearMeters();
         }
     }
+}
+
+void MainWindow::updateActivityStatus()
+{
+    // what the device is doing with what we sent: only shown while connected
+    const int pending = m_device->pendingWrites();
+    QString text;
+    if (m_device->isReady())
+    {
+        text = pending == 0   ? tr("Ready")
+               : pending == 1 ? tr("Writing...")
+                              : tr("Writing... (%1 queued)").arg(pending - 1);
+    }
+    m_activityLabel->setText(text);
 }
 
 void MainWindow::pointMetersAtVisibleMix()

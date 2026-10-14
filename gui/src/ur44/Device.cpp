@@ -2,8 +2,11 @@
 
 #include <QDebug>
 
+#include <algorithm>
+
 #include "BulkDump.h"
 #include "Parameters.h"
+#include "Scene.h"
 #include "Transport.h"
 
 namespace UR44
@@ -34,11 +37,23 @@ Device::Device(Transport* transport, const QString& port, QObject* parent)
     m_resyncTimer.setSingleShot(true);
     m_resyncTimer.setInterval(RESYNC_DELAY_MS);
     connect(&m_resyncTimer, &QTimer::timeout, this, [this]() {
-        if (isReady())
+        if (m_bulkInFlight)
+        {
+            // the state isn't settled yet; read it once the device has taken everything
+            m_resyncWhenIdle = true;
+        }
+        else if (isReady())
         {
             m_resyncRequestedAt = ++m_sequence;
             send(Protocol::dumpRequest(Protocol::DumpType::All));
         }
+    });
+
+    m_bulkTimer.setSingleShot(true);
+    m_bulkTimer.setInterval(BULK_ACK_TIMEOUT_MS);
+    connect(&m_bulkTimer, &QTimer::timeout, this, [this]() {
+        qWarning() << "The device didn't accept a bulk dump in time";
+        bulkDone(false);
     });
 }
 
@@ -61,6 +76,7 @@ void Device::start()
 void Device::stop()
 {
     m_running = false;
+    clearBulkQueue();
     m_retryTimer.stop();
     m_replyTimer.stop();
     m_confirmTimer.stop();
@@ -129,6 +145,7 @@ void Device::tryConnect()
         return;
     }
     m_splitter.clear();
+    clearBulkQueue();
     m_values.clear();
     m_unconfirmed.clear();
     m_version.clear();
@@ -143,6 +160,7 @@ void Device::disconnectWithError(const QString& error)
 {
     qWarning() << "Device disconnected:" << error;
     setLastError(error);
+    clearBulkQueue();
     m_replyTimer.stop();
     m_confirmTimer.stop();
     m_resyncTimer.stop();
@@ -155,6 +173,17 @@ void Device::disconnectWithError(const QString& error)
 }
 
 void Device::send(const QByteArray& message)
+{
+    if (!m_bulkQueue.isEmpty())
+    {
+        // keep the order: this goes after the bulk dumps waiting before it
+        m_bulkQueue.append({false, message});
+        return;
+    }
+    sendNow(message);
+}
+
+void Device::sendNow(const QByteArray& message)
 {
     if (m_transport->isOpen())
     {
@@ -189,6 +218,13 @@ void Device::handle(const Protocol::Message& message)
             setState(State::Loading);
             send(Protocol::dumpRequest(Protocol::DumpType::All));
             m_replyTimer.start();
+        }
+    }
+    else if (std::holds_alternative<Protocol::DumpAccepted>(message))
+    {
+        if (m_bulkInFlight)
+        {
+            bulkDone(true);
         }
     }
     else if (auto* dump = std::get_if<Protocol::Dump>(&message))
@@ -459,7 +495,7 @@ bool Device::writeMorphTable(uint16_t strip, const QByteArray& id, const QByteAr
             }
         }
     }
-    send(Protocol::bulkDump(Protocol::DumpType::MorphTable, table.encode()));
+    sendBulk(Protocol::DumpType::MorphTable, table.encode());
 
     // the cache follows right away (setMorph() reads it); the resync confirms
     const Parameters& params = Parameters::instance();
@@ -481,6 +517,153 @@ bool Device::writeMorphTable(uint16_t strip, const QByteArray& id, const QByteAr
     }
     resync();
     return true;
+}
+
+QByteArray Device::currentScene() const
+{
+    if (!isReady())
+    {
+        return QByteArray();
+    }
+    BulkDump scene;
+    scene.name = "CurrentScene";
+    scene.groups = Scenes::format(m_dumpFormat);
+    for (const BulkDump::Group& g : std::as_const(scene.groups))
+    {
+        for (const BulkDump::Item& item : g.items)
+        {
+            for (int inst = 0; inst < g.instances; ++inst)
+            {
+                if (item.isArray())
+                {
+                    scene.arrays[item.id].append(m_arrays.value(key(item.id, uint16_t(inst))));
+                }
+                else
+                {
+                    scene.values[item.id].append(value(item.id, uint16_t(inst)).value_or(0));
+                }
+            }
+        }
+    }
+    return scene.encode();
+}
+
+QByteArray Device::defaultScene() const
+{
+    return isReady() ? Scenes::defaults(Scenes::format(m_dumpFormat)) : QByteArray();
+}
+
+bool Device::recallScene(const QByteArray& data, QString* error)
+{
+    if (!isReady())
+    {
+        if (error)
+        {
+            *error = tr("The device isn't connected");
+        }
+        return false;
+    }
+    auto normalized = Scenes::normalize(data, error);
+    auto scene = normalized ? BulkDump::decode(*normalized, error) : std::nullopt;
+    if (!scene)
+    {
+        return false;
+    }
+    sendBulk(Protocol::DumpType::CurrentScene, *normalized);
+
+    // the cache follows right away; the resync confirms (and corrects anything the device didn't take)
+    const Parameters& params = Parameters::instance();
+    for (auto it = scene->values.constBegin(); it != scene->values.constEnd(); ++it)
+    {
+        if (const Parameter* p = params.byId(it.key()); p && Scenes::isSceneItem(p->id))
+        {
+            for (int inst = 0; inst < it.value().size(); ++inst)
+            {
+                storeValue(*p, uint16_t(inst), it.value().at(inst), true);
+                m_setAt.insert(key(p->id, uint16_t(inst)), ++m_sequence);
+            }
+        }
+    }
+    for (auto it = scene->arrays.constBegin(); it != scene->arrays.constEnd(); ++it)
+    {
+        for (int inst = 0; inst < it.value().size(); ++inst)
+        {
+            m_arrays.insert(key(it.key(), uint16_t(inst)), it.value().at(inst));
+            emit arrayChanged(it.key(), uint16_t(inst));
+        }
+    }
+    resync();
+    return true;
+}
+
+void Device::sendBulk(Protocol::DumpType type, const QByteArray& payload)
+{
+    QByteArray message = Protocol::bulkDump(type, payload);
+    if (m_bulkInFlight)
+    {
+        m_bulkQueue.append({true, message});
+        updateBusy();
+        return;
+    }
+    m_bulkInFlight = true;
+    m_bulkTimer.start();
+    sendNow(message);
+    updateBusy();
+}
+
+int Device::pendingWrites() const
+{
+    int queued = int(std::count_if(m_bulkQueue.cbegin(), m_bulkQueue.cend(), [](const auto& m) { return m.first; }));
+    return (m_bulkInFlight ? 1 : 0) + queued;
+}
+
+void Device::updateBusy()
+{
+    int pending = pendingWrites();
+    if (pending != m_reportedPending)
+    {
+        m_reportedPending = pending;
+        emit busyChanged(pending);
+    }
+}
+
+void Device::clearBulkQueue()
+{
+    m_bulkTimer.stop();
+    m_bulkQueue.clear();
+    m_bulkInFlight = false;
+    m_resyncWhenIdle = false;
+    updateBusy();
+}
+
+void Device::bulkDone(bool accepted)
+{
+    m_bulkTimer.stop();
+    m_bulkInFlight = false;
+    if (!accepted)
+    {
+        // it may have been dropped: what the device has is whatever it says it has
+        m_resyncWhenIdle = true;
+    }
+    while (!m_bulkQueue.isEmpty())
+    {
+        auto [bulk, message] = m_bulkQueue.takeFirst();
+        sendNow(message);
+        if (bulk)
+        {
+            m_bulkInFlight = true;
+            m_bulkTimer.start();
+            updateBusy();
+            return;
+        }
+    }
+    updateBusy();
+    if (m_resyncWhenIdle && isReady())
+    {
+        m_resyncWhenIdle = false;
+        m_resyncRequestedAt = ++m_sequence;
+        send(Protocol::dumpRequest(Protocol::DumpType::All));
+    }
 }
 
 void Device::resync()

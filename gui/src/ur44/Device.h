@@ -45,6 +45,8 @@ public:
     static constexpr int REPLY_TIMEOUT_MS = 1500;
     static constexpr int CONFIRM_DELAY_MS = 150;
     static constexpr int RESYNC_DELAY_MS = 200;
+    /// How long to wait for the device to accept a bulk dump we sent (it takes ~300 ms for a scene)
+    static constexpr int BULK_ACK_TIMEOUT_MS = 2000;
 
     /// Takes ownership of the transport. `port` is the port to open; empty means transport->detect().
     explicit Device(Transport* transport, const QString& port = QString(), QObject* parent = nullptr);
@@ -89,6 +91,20 @@ public:
     bool writeMorphTable(uint16_t strip, const QByteArray& id, const QByteArray& name,
                          const QHash<uint16_t, QList<int32_t>>& points);
 
+    /// The current mixer/effect state as a scene payload (Scene.h), from the cache; empty if not Ready
+    QByteArray currentScene() const;
+    /// The factory default scene (Scenes::defaults()) in this device's format; empty if not Ready
+    QByteArray defaultScene() const;
+    /// Sends a scene (a CurrentScene payload, device byte order) to the device: all of the mixer and effect state,
+    /// effect inserts included. The cache follows right away; a resync confirms. False (with `error`) if not
+    /// Ready or the payload isn't a scene.
+    bool recallScene(const QByteArray& scene, QString* error = nullptr);
+
+    /// Large writes (scenes, Sweet Spot tables) the device hasn't accepted yet, including the one it's applying.
+    /// The device needs ~300 ms per scene; changes made meanwhile wait behind them.
+    int pendingWrites() const;
+    bool isBusy() const { return pendingWrites() > 0; }
+
     /// Re-reads the whole state (a bulk dump) shortly, and announces what changed through parameterChanged.
     /// For changes the device makes without telling us, and values it won't report on their own.
     void resync();
@@ -103,6 +119,8 @@ signals:
     /// A byte-array parameter (MorphSystemId, MorphSystemName) changed
     void arrayChanged(uint16_t id, uint16_t index);
     void meterFrame(const QList<uint32_t>& values);
+    /// pendingWrites() changed
+    void busyChanged(int pendingWrites);
 
 private:
     void setState(State state);
@@ -114,7 +132,16 @@ private:
     void loadDump(const QByteArray& payload, bool merge);
     void storeValue(const Parameter& p, uint16_t index, int32_t value, bool notify);
     void sendConfirmations();
+    /// Sends a message, after any queued bulk dumps
     void send(const QByteArray& message);
+    void sendNow(const QByteArray& message);
+    /// Sends a bulk dump, or queues it while the previous one isn't accepted yet: the device keeps only about two
+    /// scenes of incoming data and silently drops what doesn't fit (docs/PROTOCOL.md, "Timing and queueing")
+    void sendBulk(Protocol::DumpType type, const QByteArray& payload);
+    void bulkDone(bool accepted);
+    void clearBulkQueue();
+    /// Emits busyChanged() if pendingWrites() changed
+    void updateBusy();
 
     static uint32_t key(uint16_t id, uint16_t index) { return (uint32_t(id) << 16) | index; }
 
@@ -137,6 +164,13 @@ private:
     quint64 m_resyncRequestedAt = 0;
     QHash<uint32_t, quint64> m_setAt;
     QTimer m_resyncTimer;
+    /// Messages waiting for the bulk dump in flight to be accepted, in order: (is a bulk dump, message)
+    QList<std::pair<bool, QByteArray>> m_bulkQueue;
+    bool m_bulkInFlight = false;
+    int m_reportedPending = 0;
+    /// A resync that came due while a bulk dump was in flight; it runs once they're all accepted
+    bool m_resyncWhenIdle = false;
+    QTimer m_bulkTimer;
     QTimer m_retryTimer;
     QTimer m_replyTimer;
     QTimer m_confirmTimer;

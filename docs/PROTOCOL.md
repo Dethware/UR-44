@@ -47,9 +47,9 @@ against the Windows builders. The host-side command numbers are `IModelService::
 | 0 | Set param | `F0 43 10 3E 14 01 {01\|03} <id:u16> <idx:u16> <value:u32> F7`. The 7th byte is `03` when PRM_INFO.flag != 0 (meaning unknown) | `01` confirmed |
 | 9 | Get version | `F0 43 30 3E 14 00 70 02 F7` | confirmed |
 | 4 / 5 | Meter start / stop | `F0 43 30 3E 14 02 02 32 {7F\|00} F7` (`METER_START`/`METER_STOP`) | **confirmed**: frames stream at 20/s until stopped |
-| 1 / 6 | Store scene (variant 1 / 2) | `F0 43 30 3E 14 03 02 01 <n:u16> F7` with n = 1 or 2. GUI `sendStoreSceneCommand` → device answers with Function `03 02 01` (`sceneStoreCompleted`) | static. **Writes device memory; don't send blindly** |
+| 1 / 6 | Store (scene / morph table) | `F0 43 30 3E 14 03 02 01 <n:u16> F7`, n = data type 1 or 2. Device answers with Function `03 02 01` | **confirmed**: a handshake, no visible effect, doesn't survive a power cut (see "Persistence") |
 | 3 / 8 / 0xc | Bulk dump request | `F0 43 20 3E 14 01 01 <n:u32> F7`, n = 1 (current scene), 2 (morph table), 3 (all data) | **confirmed** for 1 and 3 (one reply each, ~3.5 KB); 2 gets no reply |
-| 2 / 7 | Bulk dump: send scene / morph table | `F0 43 00 3E <lenH> <lenL> 14 01 01 <n:u32> <data7> <cs> F7`, n = 1 scene, 2 morph table | morph table **confirmed** (see "Sweet Spot Data" below); scene static. **Overwrites device state** |
+| 2 / 7 | Bulk dump: send scene / morph table | `F0 43 00 3E <lenH> <lenL> 14 01 01 <n:u32> <data7> <cs> F7`, n = 1 scene, 2 morph table | morph table and scene **confirmed** (see "Sweet Spot Data" and "Scenes and presets" below). **Overwrites device state** |
 | 0xb | Send version (host → device) | `F0 43 10 3E 14 00 01 00 <text, '\n'→00> F7` | static |
 | 0xd | Monitor-matrix control mode | `F0 43 10 3E 14 03 09 01 <mode:u8> F7` | static |
 | 0xe / 0xf | FX assign / unassign | assign `F0 43 10 3E 14 03 08 01 <fx type> <ch:u16> <point> F7`, unassign `… 03 08 02 <fx type> <ch:u16> 00 F7`. fx type 0 = channel strip, 1 = guitar FX; point 0 = Pre, 1 = Post (MemAPI::SetFxPatch / ResetFxPatch). The device picks the strip and updates `ChFxIns*Patch` / `ChGtrFxIns*Patch` itself (no notification is sent; a get right after the assign may time out once) | **confirmed** (input 1, both types, Post; the full-state diff after unassign was identical) |
@@ -153,16 +153,38 @@ The `Ha*` instance index is the analog input pair: 0 = inputs 1/2, 1 = 3/4, 2 = 
 
 ## Persistence and "defaults"
 
-* The device keeps its mixer state across power cycles (confirmed by experiment). The manual says
-  the current scene and the PHONES 2 source are saved when the [P] switch goes to standby. They are
-  *not* saved if power is cut while the device is on.
+* The device keeps its **whole** state across power cycles (**confirmed**): an `All` dump before and after
+  [P] standby, unplugging, replugging and switching on matched in all 940 values, and the CurrentScene dump was
+  byte-identical. That includes the system/routing settings (sample rate, PHONES 2 source, meter sources,
+  loopback), the effect inserts and the morph tables, all set through this protocol.
+* It's saved **only** when the [P] switch goes to standby (**confirmed**): a change (IN 6 MIX 2 pan) followed a few
+  seconds later by pulling the power with [P] on was lost, and the device came back with exactly the state of the
+  last standby. There's no save-as-you-go or delayed save.
+* The **store command** `F0 43 30 3E 14 03 02 01 <type:u16> F7` doesn't save either (**confirmed**). `type` is a
+  data type, not a slot: MemAPI's PJ_COMMAND 1 is store(1) (scene) and 6 is store(2) (morph table), next to the
+  type 1/2 dump requests; `MemAPI::SetSceneData` sends store(1) after the scene bulk dump when told to "send and
+  store". The device acknowledges with the same message as a change (`F0 43 10 3E 14 03 02 01 00 00 01 F7`),
+  within ~10 ms. But a change followed by store(1), and a scene bulk dump followed by store(1) with 30+ s before
+  pulling the power, were both lost (`re/probe_store.py`). It has no visible effect; only standby saves.
+* **What dspMixFx uses it for: a handshake** (traced in `dspmixfx_ur44.exe`). STORE in the scene store dialog
+  (`SceneStoreDlg::slotOkButtonClicked`, FUN_0042e550):
+  1. `SceneMemory` store (FUN_0042bdf0): reads the current scene from MemAPI (GetSceneData), puts it with the name
+     and the UI status blobs into the chosen slot of the scene list *on the computer*, then sends PJ_COMMAND 1
+     (store(1)).
+  2. The dialog emits `sendStoreSceneCommand` → `ToolArea::slotSendStoreSceneCommand` disables the scene list and
+     the STORE button and starts a 10 s timer; then `sceneStoreCompleted` (a local signal, not the device's reply)
+     → `ToolArea::slotUpdateSceneList` redraws the list.
+  3. The device's reply `03 02 01 ...` is recognised by `ParameterChangeFunction::convertFromSysEx` (it matches
+     only `02 01` after the class byte), which reports status 0 → event 0x3ef → `ToolArea::finishStore` enables the
+     list and STORE again (also on the timer's timeout).
+  So the device's reply is the useful part: it says the device has processed everything sent before it. Nothing
+  is stored on the device. Our GUI doesn't need it (scenes are read from the cache and kept in the settings).
 * The "default" column in `docs/data/memapi_param_table.txt` is the Windows software's reset/initial
   value, compiled into memapi. It has nothing to do with the device's stored state, and that is the
   only reliable source for defaults. Example: memapi's `HaInputGain` default is 1 and the manual's
   stated default for LINE 5/6 is -10 dBV, which suggests 1 = -10 dBV (still to be confirmed).
-* dspMixFx also has scene store/recall and "Initialize All" (deletes saved scenes), driven by
-  dedicated SysEx commands. Candidates are the non-parameter builders FUN_10009170..FUN_10009c10 in
-  memapi, which are not decoded yet. Don't send those blindly: they may overwrite stored scenes.
+* dspMixFx's scene list lives on the host (see "Scenes and presets"); recall is a scene bulk dump. Its
+  "Initialize All" clears that list. The store command is covered above.
 
 ## Value scales (static, from memapi display tables)
 
@@ -260,6 +282,22 @@ the state with a dump (`Device::resync()`), not with parameter reads.
 None of these live on the device: dspMixFx keeps its scene list on the computer. The device only has its
 current state (kept over standby).
 
+* **Recalling a scene (confirmed):** send it as a type 1 bulk dump. The device applies all of it, effect inserts
+  included (`ChFxIns*`, without the FX assign command), and answers `F0 43 10 3E 14 03 02 02 00 00 00 00 01 F7`.
+  Re-sending the current scene changes nothing; a changed pan or insert takes effect and re-sending the original
+  restores the state exactly (`re/probe_scene.py`). The scene's format is the state dump's minus the system items
+  below, so a client can build one from the state it has.
+* **Timing and queueing (confirmed):** a scene (3456 bytes on the wire) is out of the host in ~33 ms, and the
+  device acknowledges it ~300 ms later. Everything sent behind it is queued and handled strictly in order: a read
+  and a store sent right after it were answered right after the acknowledgement; two scenes back to back plus 20
+  sets of one parameter were all applied in order (acks at 362 / 603 ms, the store reply at 622 ms, the last set
+  won).
+* **But the input buffer is small, and overflow is silent (confirmed):** the device takes USB data at full speed
+  (no backpressure: ten scenes went out in ~33 ms each) and keeps only the scene being applied plus about one more
+  (~7 KB). With 3 or 4 scenes back to back, only 2 were acknowledged, and a store command sent behind them was lost
+  too. So a sender has to keep at most one bulk dump unacknowledged (the `03 02 02 <type>` reply) and send what
+  comes after it once it's accepted. `Device::sendBulk()` does this, and queues small messages behind a pending
+  bulk dump to keep the order.
 * **A scene is the `CurrentScene` payload**: `MemAPI::GetSceneData` is `GetCnvFileData("CurrentScene", 0x2774)`, the
   same F_/D_ chunk pair as a type 1 bulk dump. Stored on the host, the 32-byte chunk headers are **little-endian**
   (`74 27 00 00` at 24, u32 size at 28); the bodies are the same as the device's. Contents (9 groups):

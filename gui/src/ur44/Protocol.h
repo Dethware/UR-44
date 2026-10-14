@@ -82,9 +82,17 @@ struct Dump
     QByteArray payload;
 };
 
-/// The device finished storing the scene
+/// The device's reply to a store command (03 02 01): everything sent before it has been handled. No data is stored
+/// on the device (docs/PROTOCOL.md, "Persistence").
 struct StoreCompleted
 {
+};
+
+/// The device applied a bulk dump we sent (03 02 02 <type:u32>), ~300 ms after a scene. It buffers only about two
+/// scenes' worth of incoming data and silently drops the rest, so large writes have to wait for this.
+struct DumpAccepted
+{
+    uint32_t type;
 };
 
 struct Unknown
@@ -92,7 +100,7 @@ struct Unknown
     QByteArray message;
 };
 
-using Message = std::variant<ParameterValue, Version, MeterFrame, Dump, StoreCompleted, Unknown>;
+using Message = std::variant<ParameterValue, Version, MeterFrame, Dump, StoreCompleted, DumpAccepted, Unknown>;
 
 /// Decodes one complete SysEx message (F0 ... F7)
 Message parse(const QByteArray& sysex);

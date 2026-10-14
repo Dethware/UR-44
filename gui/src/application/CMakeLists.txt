@@ -28,6 +28,9 @@ qt_add_executable(ur44-control
 
     MixPage.h
     MixPage.cpp
+
+    ScenesPanel.h
+    ScenesPanel.cpp
 )
 
 target_link_libraries(ur44-control PRIVATE ur44 shared shared_ui Qt6::Widgets)

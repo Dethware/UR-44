@@ -28,6 +28,9 @@ qt_add_library(ur44 STATIC
 
     SweetSpot.h
     SweetSpot.cpp
+
+    Scene.h
+    Scene.cpp
 )
 
 # The parameter table is generated from the reverse engineering results in tools/

@@ -262,6 +262,10 @@ Message parse(const QByteArray& m)
     {
         return StoreCompleted{};
     }
+    if (cls == 0x03 && sub == 0x02 && m.size() == 14 && byteAt(m, 7) == 0x02)
+    {
+        return DumpAccepted{readBE7(m.constData() + 8, 5)};
+    }
     return unknown();
 }
 

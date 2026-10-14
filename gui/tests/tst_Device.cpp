@@ -6,6 +6,7 @@
 #include "SweetSpot.h"
 #include "Parameters.h"
 #include "Protocol.h"
+#include "Scene.h"
 #include "Transport.h"
 
 using namespace UR44;
@@ -41,6 +42,20 @@ public:
     int opens = 0;
     int dumpRequests = 0;
     int morphTableWrites = 0;
+    int sceneWrites = 0;
+    /// Keep the bulk dump acknowledgements until releaseBulkAcks() (the device takes ~300 ms per scene)
+    bool holdBulkAcks = false;
+    /// Never acknowledge bulk dumps
+    bool dropBulkAcks = false;
+    void releaseBulkAcks()
+    {
+        for (const QByteArray& ack : std::exchange(m_heldAcks, {}))
+        {
+            emit received(ack);
+        }
+    }
+    /// Bulk dumps written so far, of either kind
+    int bulkWrites() const { return morphTableWrites + sceneWrites; }
     /// Byte-array parameters written by the host (others come from the captured dump)
     QHash<uint32_t, QByteArray> arrays;
     /// ChFxInsPrePatch, ChFxInsPostPatch, ChGtrFxInsPrePatch, ChGtrFxInsPostPatch
@@ -91,6 +106,8 @@ public:
     int count(const QByteArray& message) const { return int(written.count(message)); }
 
 private:
+    QList<QByteArray> m_heldAcks;
+
     void respond(const QByteArray& request)
     {
         if (!m_open)
@@ -136,11 +153,12 @@ private:
         }
         else if (auto m = Protocol::parse(request); std::holds_alternative<Protocol::Dump>(m))
         {
-            // a morph table write: apply it and acknowledge like the real device
+            // a morph table or scene write: apply it and acknowledge like the real device
             const auto& dump = std::get<Protocol::Dump>(m);
-            if (dump.type == uint32_t(Protocol::DumpType::MorphTable))
+            if (dump.type == uint32_t(Protocol::DumpType::MorphTable) ||
+                dump.type == uint32_t(Protocol::DumpType::CurrentScene))
             {
-                ++morphTableWrites;
+                ++(dump.type == uint32_t(Protocol::DumpType::MorphTable) ? morphTableWrites : sceneWrites);
                 auto table = BulkDump::decode(dump.payload);
                 for (auto it = table->values.constBegin(); it != table->values.constEnd(); ++it)
                 {
@@ -156,7 +174,17 @@ private:
                         arrays[key(it.key(), i)] = it.value().at(i);
                     }
                 }
-                emit received(QByteArray::fromHex("F043103E1403020200000000 02F7").replace(' ', ""));
+                QByteArray ack = QByteArray::fromHex("F043103E140302020000000000F7").replace(12, 1, QByteArray(1, char(dump.type)));
+                if (dropBulkAcks)
+                {
+                    return;
+                }
+                if (holdBulkAcks)
+                {
+                    m_heldAcks.append(ack);
+                    return;
+                }
+                emit received(ack);
             }
         }
         else if (request == Protocol::meters(true))
@@ -674,6 +702,131 @@ private slots:
         QTRY_COMPARE(m_fake->dumpRequests, 2);
         QCOMPARE(m_fake->arrays.value(FakeUR44::key(0x52, strip)).left(7), QByteArray("07 Test"));
         QCOMPARE(morphPoint(strip, 8), preset->points[8]);
+    }
+
+    // --- Scenes ---------------------------------------------------------------------------------------------------
+
+    void scene_currentIsTheMixerState()
+    {
+        makeDevice();
+        QVERIFY(m_device->currentScene().isEmpty()); // not connected
+        connectReady();
+        auto scene = BulkDump::decode(m_device->currentScene());
+        QVERIFY(scene);
+        QCOMPARE(scene->name, QString("CurrentScene"));
+        QCOMPARE(scene->groups.size(), 9);
+        QVERIFY(!scene->values.contains(P("SysFsCode").id));
+        QCOMPARE(scene->values[P("ChSendMixBus1Level").id], (QList<int32_t>{127, 103, 103, 103, 103, 103}));
+        QCOMPARE(scene->arrays[P("MorphSystemName").id].at(0).left(8), QByteArray("01 Basic"));
+    }
+
+    void scene_recallAppliesEverything()
+    {
+        makeDevice();
+        connectReady();
+        auto scene = BulkDump::decode(m_device->currentScene());
+        scene->values[P("ChSendMixBus2Pan").id][5] = 9;
+        scene->values[P("ChFxInsPostPatch").id][5] = 4; // inserts come with the scene
+        scene->arrays[P("MorphSystemName").id][2] = QByteArray("02 Color").leftJustified(256, '\0');
+        const int32_t rate = m_device->value("SysFsCode").value();
+        QSignalSpy changes(m_device.get(), &Device::parameterChanged);
+
+        QString error;
+        QVERIFY2(m_device->recallScene(Scenes::toHostOrder(scene->encode()), &error), qPrintable(error));
+        // the cache follows at once
+        QCOMPARE(m_device->value("ChSendMixBus2Pan", 5), std::optional<int32_t>(9));
+        QCOMPARE(m_device->value("ChFxInsPostPatch", 5), std::optional<int32_t>(4));
+        QCOMPARE(m_device->array("MorphSystemName", 2).left(8), QByteArray("02 Color"));
+        QVERIFY(changes.size() >= 2);
+        // the device got it, and the resync agrees
+        QTRY_COMPARE(m_fake->sceneWrites, 1);
+        QCOMPARE(m_fake->registers.value(FakeUR44::key(P("ChSendMixBus2Pan").id, 5)), uint32_t(9));
+        QTRY_COMPARE(m_fake->dumpRequests, 2);
+        QTest::qWait(50);
+        QCOMPARE(m_device->value("ChSendMixBus2Pan", 5), std::optional<int32_t>(9));
+        QCOMPARE(m_device->value("SysFsCode"), std::optional<int32_t>(rate)); // not part of a scene
+    }
+
+    void scene_recallRejectsNonScenes()
+    {
+        makeDevice();
+        QString error;
+        QVERIFY(!m_device->recallScene(QByteArray("x"), &error)); // not connected
+        connectReady();
+        QVERIFY(!m_device->recallScene(QByteArray("not a scene"), &error));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(!m_device->recallScene(readData("dump_all.bin"), &error));
+        QCOMPARE(m_fake->sceneWrites, 0);
+    }
+
+    void bulkWrites_waitForTheDevice()
+    {
+        // the device keeps only ~2 scenes of incoming data and drops the rest: one bulk dump in flight at a time,
+        // and whatever is sent meanwhile goes after it
+        makeDevice();
+        connectReady();
+        m_fake->holdBulkAcks = true;
+        const uint16_t pan = P("ChSendMixBus2Pan").id;
+        auto scene = BulkDump::decode(m_device->currentScene());
+        scene->values[pan][5] = 1;
+        const QByteArray a = scene->encode();
+        scene->values[pan][5] = 2;
+        const QByteArray b = scene->encode();
+
+        QSignalSpy busy(m_device.get(), &Device::busyChanged);
+        QVERIFY(!m_device->isBusy());
+        QVERIFY(m_device->recallScene(a));
+        QVERIFY(m_device->recallScene(b));
+        QCOMPARE(m_device->pendingWrites(), 2);
+        QVERIFY(m_device->setParameter("ChSendMixBus2Pan", 5, 3));
+        QCOMPARE(m_device->value("ChSendMixBus2Pan", 5), std::optional<int32_t>(3)); // the cache doesn't wait
+        QTest::qWait(300); // past the resync delay
+        QCOMPARE(m_fake->sceneWrites, 1);
+        QCOMPARE(m_fake->count(Protocol::setParameter(pan, 5, 3)), 0);
+        QCOMPARE(m_fake->dumpRequests, 1); // the resync waits too
+
+        m_fake->releaseBulkAcks();
+        QTRY_COMPARE(m_fake->sceneWrites, 2);
+        QCOMPARE(m_fake->count(Protocol::setParameter(pan, 5, 3)), 0);
+        m_fake->releaseBulkAcks();
+        QTRY_COMPARE(m_fake->count(Protocol::setParameter(pan, 5, 3)), 1);
+        QTRY_COMPARE(m_fake->dumpRequests, 2);
+        QVERIFY(!m_device->isBusy());
+        QList<int> counts;
+        for (const auto& args : busy)
+        {
+            counts.append(args.at(0).toInt());
+        }
+        QCOMPARE(counts, (QList<int>{1, 2, 1, 0}));
+        QTRY_COMPARE(m_fake->registers.value(FakeUR44::key(pan, 5)), uint32_t(3));
+        QTest::qWait(50);
+        QCOMPARE(m_device->value("ChSendMixBus2Pan", 5), std::optional<int32_t>(3));
+    }
+
+    void bulkWrites_unacknowledgedTimeOut()
+    {
+        makeDevice();
+        connectReady();
+        m_fake->dropBulkAcks = true;
+        QVERIFY(m_device->recallScene(m_device->currentScene()));
+        QVERIFY(m_device->recallScene(m_device->currentScene()));
+        QTRY_COMPARE(m_fake->sceneWrites, 1);
+        QTest::qWait(300);
+        QCOMPARE(m_fake->sceneWrites, 1);
+        // the next one goes after the timeout, and the state is read back once nothing is pending
+        QTRY_COMPARE_WITH_TIMEOUT(m_fake->sceneWrites, 2, Device::BULK_ACK_TIMEOUT_MS + 500);
+        QCOMPARE(m_device->state(), Device::State::Ready);
+        QTRY_COMPARE_WITH_TIMEOUT(m_fake->dumpRequests, 2, Device::BULK_ACK_TIMEOUT_MS + 500);
+    }
+
+    void scene_defaults()
+    {
+        makeDevice();
+        connectReady();
+        QVERIFY(m_device->recallScene(m_device->defaultScene()));
+        QCOMPARE(m_device->value("ChSendMixBus1Onf", 0), std::optional<int32_t>(1));
+        QCOMPARE(m_device->value("ChFxInsPrePatch", 0), std::optional<int32_t>(0));
+        QTRY_COMPARE(m_fake->sceneWrites, 1);
     }
 
     void fakeDump_reflectsRegisters()

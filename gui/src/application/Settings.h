@@ -1,8 +1,25 @@
 #pragma once
 
 #include <QJsonObject>
+#include <QList>
 #include <QString>
 #include <QTimer>
+
+/// A prepared scene: the mixer/effect state to recall (UR44::Scene), kept in the settings
+struct StoredScene
+{
+    QString name;
+    /// The scene payload (device byte order), base64
+    QString data;
+
+    QJsonObject extra;
+
+    template<typename S> void serialize(S& fp)
+    {
+        fp.property("name", name);
+        fp.property("data", data);
+    }
+};
 
 /*
  * Application settings, stored as JSON (see JsonSerialization.h).
@@ -43,12 +60,16 @@ struct Settings
     /// Folder with Sweet Spot Data presets (.ssd, searched recursively). Empty means <data dir>/sweet-spot.
     QString sweetSpotFolder;
 
+    /// Prepared scenes, in the order shown
+    QList<StoredScene> scenes;
+
     QJsonObject extra;
 
     template<typename S> void serialize(S& fp)
     {
         fp.property("midi_port", midiPort);
         fp.property("sweet_spot_folder", sweetSpotFolder);
+        fp.property("scenes", scenes);
     }
 
 private:
