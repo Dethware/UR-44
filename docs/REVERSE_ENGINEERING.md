@@ -36,6 +36,7 @@ vendor/extracted/                built by re/extract_vendor.sh (SHA256SUMS insid
   tools_v222/ysusb_driver/{x86,x64}/   YSUSB driver bundled with TOOLS (sys/inf/cat, bulklib, ASIO, control panel)
   ysusb_v217/                    standalone driver V2.1.7 (x64 sys, bulklib32/64, ASIO, control panel)
   sweet_spot/{Yamaha Preset,Engineers' Preset}/   the 34 .ssd presets with their proper names
+  template_scenes/               the scenes embedded in the factory Cubase templates (re/extract_template_scenes.py)
   firmware_v212/                 upd_ur44_boot_main_v212.bin (identical in the Windows and macOS updaters)
   tools_v230_mac/                (extra) dspMixFx 2.3.0 .app (universal x86_64+arm64), UR44/AADM Cubase extensions
 vendor/analysis/ghidra/          full decompilations, built by re/ghidra/decompile_all.sh
@@ -62,7 +63,7 @@ vendor/analysis/ghidra/          full decompilations, built by re/ghidra/decompi
   has an extra bulk pair (IF4 EP 0x03/0x84); this lib is how Windows reaches it.
 * `ur44_extension.dll`, `ysusb_aadm_extension.dll` – Cubase plugins (`GetPluginFactory`).
 * `UR44_firmware_V212.exe` – statically linked Qt updater, also using IUsbBulkPort.
-* `steinberg_ur44_*` – factory scenes in Cubase's RIFF/`NUNDROOT` container. Not decoded yet.
+* `steinberg_ur44_*` – Cubase AI 7 project templates (RIFF/`NUNDROOT`) with a dspMixFx scene embedded; see PROTOCOL.md "Scenes and presets" and `re/extract_template_scenes.py`.
 
 ## memapi_ur44.dll (32-bit) landmarks
 

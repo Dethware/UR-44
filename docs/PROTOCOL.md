@@ -255,6 +255,57 @@ the state with a dump (`Device::resync()`), not with parameter reads.
 * There's no REV-X output meter: all 22 meter pairs are accounted for (see "Meter frame"), and the OUTPUT meter
   is also plug-in only.
 
+## Scenes and presets (host-side files)
+
+None of these live on the device: dspMixFx keeps its scene list on the computer. The device only has its
+current state (kept over standby).
+
+* **A scene is the `CurrentScene` payload**: `MemAPI::GetSceneData` is `GetCnvFileData("CurrentScene", 0x2774)`, the
+  same F_/D_ chunk pair as a type 1 bulk dump. Stored on the host, the 32-byte chunk headers are **little-endian**
+  (`74 27 00 00` at 24, u32 size at 28); the bodies are the same as the device's. Contents (9 groups):
+  per input (6) pair/fader link, phase, HPF, the FX insert patches, both mixes' on/level/pan/solo, REV-X send;
+  DAW sends for both mixes; the 4 morph tables with their Sweet Spot names; the 4 channel strips; REV-X (incl.
+  returns); the guitar amp (all 4 models); master on/level/balance; `PatchFxSend`. **Not** in a scene: sample rate,
+  PHONES 2 source, meter sources, loopback, solo state flag, +48V and the input gains (the `All` dump's extra items).
+  So recalling a scene doesn't touch the routing/system settings.
+  `GetSceneData` can optionally leave out the items with ids 0x1e..0x20 (the master levels / MIX 1 balance); what
+  sets that option isn't known.
+* **Scene file (`*.UR44`)**: XML, `<!DOCTYPE UR44>`:
+  ```
+  <UR44File><Header>UR44 File</Header><Version>1.0.0</Version>
+    <SceneData>
+      <Scene No="1..20" name="..." sz="bytes" cvtSz="base64 length" [IO=".."] [ChStripPatch=".."] [ExtFX=".."]>
+        base64 scene payload
+        <MuteStatus ChSz=".." OutChSz="..">base64</MuteStatus>
+        <FxInsPosStatus ChSz="..">base64</FxInsPosStatus>
+        <ChFxTypeStatus ChSz="..">base64</ChFxTypeStatus>
+      </Scene>  (up to 20, empty slots left out)
+    </SceneData>
+    <CurrentScene>n</CurrentScene>
+    <CurrentData sz=".." cvtSz=".." IO="0" ChStripPatch="0" ExtFX="0">base64 + the same three status elements</CurrentData>
+  </UR44File>
+  ```
+  (from the writer in `dspmixfx_ur44.exe`, FUN_00429790 / FUN_004284b0; no sample file). The three status blobs are
+  dspMixFx UI memory per channel (×output for the mutes): presumably the INS/MON position and Ch.Strip/Guitar Amp
+  choice a channel shows while no effect is inserted, and the mute memory. Their layout isn't decoded.
+* **Factory "scenes"** (`steinberg_ur44_*` in TOOLS): Cubase AI 7 project templates, each with the UR44 extension's
+  scene embedded after a `MemAPI` tag. `re/extract_template_scenes.py` pulls them out as decodable payloads:
+  | Template | Inserts | REV-X | Sweet Spot tables (strips 1-4) |
+  |---|---|---|---|
+  | guitar_vocal | IN 1 Guitar Amp (Crunch) MON, IN 2 Ch.Strip 1 MON | Plate 1.5 s | 08 MR Vocal, 01 Basic ×3 |
+  | guitar_vocal 2 | IN 1 Guitar Amp (Crunch), IN 2/3 Ch.Strip 2/1 | Plate 1.5 s | 08 MR Vocal, 19 IO A.Guitar, 01 Basic ×2 |
+  | multi_channel | IN 1/2 Ch.Strip 2/1 | Hall 2.6 s | 01 Basic ×4 |
+  | stereo_recording | IN 1-4 Ch.Strip 1-4, pairs 1/2, 3/4 | Room 0.4 s | 01 Basic ×2, 02 Color ×2 |
+  | vocal_inst_rec | IN 1/2 Ch.Strip 4/3 INS, IN 3/4 Ch.Strip 1/2, pair 3/4 | Plate 1.5 s | 11 SH Piano ×2, 14 OK Master - Vocal, 08 MR Vocal |
+  | vocal_inst_rec 2 | IN 1-4 Ch.Strip 4,3,1,2 | Plate 1.5 s | 11 SH Piano ×2, 04 MZ A.Guitar, 08 MR Vocal |
+  All have every input at 0 dB/centre in both mixes (only the REV-X sends differ), both REV-X returns on and REV-X
+  fed from MIX 1. The four templates without a guitar amp also lack the guitar amp group (8 groups instead of 9).
+* **Effect presets (`*.vstpreset`)**: dspMixFx's effect editors are the VST3 plug-ins themselves, and they save the
+  standard Steinberg preset container (`VST3` header, class id, chunk list with `Comp`/`Cont`/`Info`). The `Comp`
+  chunk is the plug-in's own state: `"0000"`, a list of u32 BE, then the plug-in model's serialization
+  (`MyVst::Component::getState` in the REV-X plug-in). The Channel Strip plug-in also has a `readSSD`, so its
+  presets likely carry the Sweet Spot table. Not decoded further; no factory .vstpreset files ship with TOOLS.
+
 ## Sweet Spot Data (morph tables)
 
 * Presets are `.ssd` files (512 bytes): `SSMD`, version 1 (u32 LE at 8), id ("0002", 16 bytes at 0x10), then 9 points

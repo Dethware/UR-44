@@ -29,8 +29,10 @@ for f in dspmixfx_ur44.exe memapi_ur44.dll ur44_extension.dll ysusb_aadm_extensi
          qtcore4.dll qtgui4.dll qtnetwork4.dll qtxml4.dll; do
   cp "$TMP/urap_comm/$f" "$A/"
 done
-# factory scene/preset files (Cubase RIFF "NUNDROOT" containers)
+# factory Cubase AI 7 project templates (RIFF "NUNDROOT"), shipped as "scenes"
 for f in "$TMP"/urap_comm/steinberg_ur44_*; do cp "$f" "$A/scenes/"; done
+# ...and the dspMixFx scene each one embeds, as decodable CurrentScene payloads
+python3 -I re/extract_template_scenes.py "$OUT/template_scenes" "$A"/scenes/steinberg_ur44_* > /dev/null
 
 # 64-bit builds of the helper DLLs (the ".dll1" suffix is an MSI cab artifact)
 B="$OUT/tools_v222/helpers_x64"
@@ -87,5 +89,5 @@ fi
 # --- YSUSB V2.1.11 standalone driver: Inno Setup 6.7, not supported by innoextract 1.9 ---
 echo "note: $DL/YSUSB_V2111_Win is Inno Setup 6.7; not extracted (needs newer innoextract)"
 
-( cd "$OUT" && find . -type f | sort | xargs sha256sum ) > "$OUT/SHA256SUMS"
+( cd "$OUT" && find . -type f ! -name SHA256SUMS -print0 | sort -z | xargs -0 sha256sum ) > "$OUT/SHA256SUMS"
 echo "extracted into $OUT"
