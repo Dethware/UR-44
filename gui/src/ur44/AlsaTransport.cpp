@@ -27,7 +27,15 @@ QString AlsaTransport::detect()
         }
         snd_ctl_card_info_t* info;
         snd_ctl_card_info_alloca(&info);
-        bool isUR44 = snd_ctl_card_info(ctl, info) == 0 && QString(snd_ctl_card_info_get_name(info)).contains("UR44");
+        bool isUR44 = false;
+        if(snd_ctl_card_info(ctl, info) == 0)
+        {
+            auto cardName = QString(snd_ctl_card_info_get_name(info));
+            // NOTE: There are other, newer variants of UR44-like devices.
+            // We do not want to match them or try to use them.
+            // It could have unforeseen consequences.
+            isUR44 = cardName == "Steinberg UR44";
+        }
 
         // The control port is subdevice 1 of rawmidi device 0
         bool hasPort = false;

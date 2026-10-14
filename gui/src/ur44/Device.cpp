@@ -160,6 +160,10 @@ void Device::send(const QByteArray& message)
     {
         m_transport->write(message);
     }
+    else
+    {
+        qWarning() << "Transport not open on send()";
+    }
 }
 
 void Device::onReceived(const QByteArray& bytes)
