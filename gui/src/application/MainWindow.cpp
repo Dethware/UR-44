@@ -19,7 +19,7 @@ MainWindow::MainWindow(QWidget *parent)
 {
     m_ui->setupUi(this);
 
-    m_device = new Device(new UR44::AlsaTransport, APPLICATION->settings.midiPort, this);
+    m_device = new Device(new UR44::AlsaTransport, APPLICATION->settings.ur44.midiPort, this);
 
     for (int bus : {1, 2})
     {

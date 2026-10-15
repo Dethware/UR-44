@@ -30,12 +30,12 @@ private slots:
     void load_readsValues()
     {
         QString path = newPath();
-        FS::write(path, R"({"midi_port": "hw:1,0,1"})");
+        FS::write(path, R"({"ur44": {"midi_port": "hw:1,0,1"}})");
 
         Settings settings;
         settings.setPath(path);
         QVERIFY(settings.load());
-        QCOMPARE(settings.midiPort, QString("hw:1,0,1"));
+        QCOMPARE(settings.ur44.midiPort, QString("hw:1,0,1"));
     }
 
     void load_failsWithoutTouchingDefaults()
@@ -43,7 +43,7 @@ private slots:
         Settings settings;
         settings.setPath(m_dir.filePath("missing.json"));
         QVERIFY(!settings.load());
-        QCOMPARE(settings.midiPort, QString());
+        QCOMPARE(settings.ur44.midiPort, QString());
 
         QString path = newPath();
         FS::write(path, "not json");
@@ -57,29 +57,30 @@ private slots:
         {
             Settings settings;
             settings.setPath(path);
-            settings.midiPort = "hw:2,0,1";
+            settings.ur44.midiPort = "hw:2,0,1";
             QVERIFY(settings.save());
         }
         Settings settings;
         settings.setPath(path);
         QVERIFY(settings.load());
-        QCOMPARE(settings.midiPort, QString("hw:2,0,1"));
+        QCOMPARE(settings.ur44.midiPort, QString("hw:2,0,1"));
     }
 
     void save_keepsUnknownKeys()
     {
         QString path = newPath();
-        FS::write(path, R"({"midi_port": "x", "windowGeometry": [1, 2, 3, 4]})");
+        FS::write(path, R"({"ur44": {"midi_port": "x", "future": 1}, "windowGeometry": [1, 2, 3, 4]})");
 
         Settings settings;
         settings.setPath(path);
         QVERIFY(settings.load());
-        settings.midiPort = "y";
+        settings.ur44.midiPort = "y";
         QVERIFY(settings.save());
 
         QJsonObject written = readFile(path);
         QCOMPARE(written["windowGeometry"].toArray(), (QJsonArray{1, 2, 3, 4}));
-        QCOMPARE(written["midi_port"].toString(), QString("y"));
+        QCOMPARE(written["ur44"].toObject()["midi_port"].toString(), QString("y"));
+        QCOMPARE(written["ur44"].toObject()["future"].toInt(), 1);
     }
 
     void scheduleSave_isDelayed()
@@ -87,12 +88,12 @@ private slots:
         QString path = newPath();
         Settings settings;
         settings.setPath(path);
-        settings.midiPort = "delayed";
+        settings.ur44.midiPort = "delayed";
         settings.scheduleSave();
         QVERIFY(!QFile::exists(path));
 
         QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(path), Settings::SAVE_DELAY_MS * 3);
-        QCOMPARE(readFile(path)["midi_port"].toString(), QString("delayed"));
+        QCOMPARE(readFile(path)["ur44"].toObject()["midi_port"].toString(), QString("delayed"));
     }
 
     void scheduleSave_isNotPostponedByConstantChanges()
@@ -107,7 +108,7 @@ private slots:
         int changes = 0;
         while (!QFile::exists(path) && timer.elapsed() < Settings::SAVE_DELAY_MS * 3)
         {
-            settings.midiPort = QString::number(++changes);
+            settings.ur44.midiPort = QString::number(++changes);
             settings.scheduleSave();
             QTest::qWait(5);
         }
@@ -124,11 +125,11 @@ private slots:
         // Many changes in quick succession result in one write, containing the last value
         for (int i = 0; i < 1000; ++i)
         {
-            settings.midiPort = QString::number(i);
+            settings.ur44.midiPort = QString::number(i);
             settings.scheduleSave();
         }
         QTRY_VERIFY_WITH_TIMEOUT(QFile::exists(path), Settings::SAVE_DELAY_MS * 3);
-        QCOMPARE(readFile(path)["midi_port"].toString(), QString("999"));
+        QCOMPARE(readFile(path)["ur44"].toObject()["midi_port"].toString(), QString("999"));
 
         // Nothing is pending anymore, so nothing else gets written
         QFile::remove(path);
@@ -145,10 +146,10 @@ private slots:
         settings.flush();
         QVERIFY(!QFile::exists(path));
 
-        settings.midiPort = "flushed";
+        settings.ur44.midiPort = "flushed";
         settings.scheduleSave();
         settings.flush();
-        QCOMPARE(readFile(path)["midi_port"].toString(), QString("flushed"));
+        QCOMPARE(readFile(path)["ur44"].toObject()["midi_port"].toString(), QString("flushed"));
     }
 
     void destructor_writesPendingChanges()
@@ -157,11 +158,11 @@ private slots:
         {
             Settings settings;
             settings.setPath(path);
-            settings.midiPort = "on exit";
+            settings.ur44.midiPort = "on exit";
             settings.scheduleSave();
             QVERIFY(!QFile::exists(path));
         }
-        QCOMPARE(readFile(path)["midi_port"].toString(), QString("on exit"));
+        QCOMPARE(readFile(path)["ur44"].toObject()["midi_port"].toString(), QString("on exit"));
     }
 };
 

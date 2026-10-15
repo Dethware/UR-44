@@ -21,8 +21,31 @@ struct StoredScene
     }
 };
 
+/// Settings for the UR44 (the device support may grow other models with their own settings)
+struct UR44Settings
+{
+    /// ALSA rawmidi port of the UR44's control interface (its second MIDI port, e.g. "hw:1,0,1").
+    /// Empty means auto-detect.
+    QString midiPort;
+
+    /// Folder with Sweet Spot Data presets (.ssd, searched recursively). Empty means <data dir>/sweet-spot.
+    QString sweetSpotFolder;
+
+    /// Prepared scenes, in the order shown
+    QList<StoredScene> scenes;
+
+    QJsonObject extra;
+
+    template<typename S> void serialize(S& fp)
+    {
+        fp.property("midi_port", midiPort);
+        fp.property("sweet_spot_folder", sweetSpotFolder);
+        fp.property("scenes", scenes);
+    }
+};
+
 /*
- * Application settings, stored as JSON (see JsonSerialization.h).
+ * Application settings, stored as JSON (see JsonSerialization.h). Device settings are grouped per model ("ur44").
  *
  * Change the members directly, then call scheduleSave(). Saving is throttled: the first change starts a timer, and
  * everything changed until it fires is written at once. This keeps the number of writes bounded even if values
@@ -53,23 +76,14 @@ struct Settings
     /// Writes the settings now, if there's a scheduled save.
     void flush();
 
-    /// ALSA rawmidi port of the UR44's control interface (its second MIDI port, e.g. "hw:1,0,1").
-    /// Empty means auto-detect.
-    QString midiPort;
-
-    /// Folder with Sweet Spot Data presets (.ssd, searched recursively). Empty means <data dir>/sweet-spot.
-    QString sweetSpotFolder;
-
-    /// Prepared scenes, in the order shown
-    QList<StoredScene> scenes;
+    /// Device settings, per model
+    UR44Settings ur44;
 
     QJsonObject extra;
 
     template<typename S> void serialize(S& fp)
     {
-        fp.property("midi_port", midiPort);
-        fp.property("sweet_spot_folder", sweetSpotFolder);
-        fp.property("scenes", scenes);
+        fp.property("ur44", ur44);
     }
 
 private:

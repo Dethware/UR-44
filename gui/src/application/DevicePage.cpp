@@ -71,7 +71,7 @@ DevicePage::DevicePage(Device* device, QWidget* parent) : QWidget(parent)
                                                         APPLICATION->sweetSpotFolder());
         if (!dir.isEmpty())
         {
-            APPLICATION->settings.sweetSpotFolder = dir;
+            APPLICATION->settings.ur44.sweetSpotFolder = dir;
             APPLICATION->settings.scheduleSave();
             showFolder();
         }

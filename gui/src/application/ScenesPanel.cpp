@@ -76,7 +76,7 @@ void ScenesPanel::reload()
 {
     const int row = m_list->currentRow();
     m_list->clear();
-    const auto& scenes = APPLICATION->settings.scenes;
+    const auto& scenes = APPLICATION->settings.ur44.scenes;
     for (int i = 0; i < scenes.size(); ++i)
     {
         auto* item = new QListWidgetItem(scenes[i].name, m_list);
@@ -105,7 +105,7 @@ void ScenesPanel::updateButtons()
 int ScenesPanel::selected() const
 {
     int row = m_list->currentRow();
-    return row >= 0 && row < APPLICATION->settings.scenes.size() ? row : -1;
+    return row >= 0 && row < APPLICATION->settings.ur44.scenes.size() ? row : -1;
 }
 
 void ScenesPanel::save()
@@ -116,11 +116,11 @@ void ScenesPanel::save()
 
 void ScenesPanel::recall(int index)
 {
-    if (index < 0 || index >= APPLICATION->settings.scenes.size())
+    if (index < 0 || index >= APPLICATION->settings.ur44.scenes.size())
     {
         return;
     }
-    const StoredScene& scene = APPLICATION->settings.scenes[index];
+    const StoredScene& scene = APPLICATION->settings.ur44.scenes[index];
     QString error;
     if (!m_device->recallScene(QByteArray::fromBase64(scene.data.toLatin1()), &error))
     {
@@ -139,7 +139,7 @@ void ScenesPanel::store()
     {
         return;
     }
-    StoredScene& scene = APPLICATION->settings.scenes[index];
+    StoredScene& scene = APPLICATION->settings.ur44.scenes[index];
     if (QMessageBox::question(this, tr("Store Scene"),
                               tr("Replace \"%1\" with the current settings?").arg(scene.name)) != QMessageBox::Yes)
     {
@@ -159,14 +159,14 @@ void ScenesPanel::storeAs()
     }
     bool ok = false;
     QString name = QInputDialog::getText(this, tr("Store Scene As"), tr("Scene name:"), QLineEdit::Normal,
-                                         tr("Scene %1").arg(APPLICATION->settings.scenes.size() + 1), &ok)
+                                         tr("Scene %1").arg(APPLICATION->settings.ur44.scenes.size() + 1), &ok)
                        .trimmed();
     if (!ok || name.isEmpty())
     {
         return;
     }
-    APPLICATION->settings.scenes.append({name, QString::fromLatin1(data.toBase64()), {}});
-    m_active = int(APPLICATION->settings.scenes.size()) - 1;
+    APPLICATION->settings.ur44.scenes.append({name, QString::fromLatin1(data.toBase64()), {}});
+    m_active = int(APPLICATION->settings.ur44.scenes.size()) - 1;
     save();
     m_list->setCurrentRow(m_active);
 }
@@ -178,7 +178,7 @@ void ScenesPanel::rename()
     {
         return;
     }
-    StoredScene& scene = APPLICATION->settings.scenes[index];
+    StoredScene& scene = APPLICATION->settings.ur44.scenes[index];
     bool ok = false;
     QString name = QInputDialog::getText(this, tr("Rename Scene"), tr("Scene name:"), QLineEdit::Normal, scene.name, &ok)
                        .trimmed();
@@ -196,7 +196,7 @@ void ScenesPanel::remove()
     {
         return;
     }
-    APPLICATION->settings.scenes.removeAt(index);
+    APPLICATION->settings.ur44.scenes.removeAt(index);
     m_active = m_active == index ? -1 : (m_active > index ? m_active - 1 : m_active);
     save();
 }
@@ -204,14 +204,14 @@ void ScenesPanel::remove()
 void ScenesPanel::clear()
 {
     if (QMessageBox::question(this, tr("Delete All Scenes"),
-                              APPLICATION->settings.scenes.size() == 1
+                              APPLICATION->settings.ur44.scenes.size() == 1
                                   ? tr("Delete the prepared scene? This can't be undone.")
                                   : tr("Delete all %1 prepared scenes? This can't be undone.")
-                                        .arg(APPLICATION->settings.scenes.size())) != QMessageBox::Yes)
+                                        .arg(APPLICATION->settings.ur44.scenes.size())) != QMessageBox::Yes)
     {
         return;
     }
-    APPLICATION->settings.scenes.clear();
+    APPLICATION->settings.ur44.scenes.clear();
     m_active = -1;
     save();
 }
@@ -271,7 +271,7 @@ void ScenesPanel::importFile()
     for (const UR44::Scene& scene : std::as_const(scenes->scenes))
     {
         QString name = scene.name.trimmed().isEmpty() ? QFileInfo(path).completeBaseName() : scene.name;
-        APPLICATION->settings.scenes.append({name, QString::fromLatin1(scene.data.toBase64()), {}});
+        APPLICATION->settings.ur44.scenes.append({name, QString::fromLatin1(scene.data.toBase64()), {}});
     }
     save();
     QMessageBox::information(this, tr("Import dspMixFx Scenes"),
@@ -281,7 +281,7 @@ void ScenesPanel::importFile()
 
 void ScenesPanel::exportFile()
 {
-    const auto& stored = APPLICATION->settings.scenes;
+    const auto& stored = APPLICATION->settings.ur44.scenes;
     QString path = QFileDialog::getSaveFileName(this, tr("Export dspMixFx Scenes"), QString(),
                                                 tr("dspMixFx scene files (*.UR44)"));
     if (path.isEmpty())

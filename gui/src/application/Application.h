@@ -26,7 +26,7 @@ public:
 
     /// Where Sweet Spot Data presets are looked for (the setting, or <data dir>/sweet-spot)
     QString sweetSpotFolder() const {
-        return settings.sweetSpotFolder.isEmpty() ? dataDir.filePath("sweet-spot") : settings.sweetSpotFolder;
+        return settings.ur44.sweetSpotFolder.isEmpty() ? dataDir.filePath("sweet-spot") : settings.ur44.sweetSpotFolder;
     }
 
     qint64 timeSinceStart() const {

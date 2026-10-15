@@ -82,7 +82,9 @@ against the Windows builders. The host-side command numbers are `IModelService::
 * **Verified**: all 473 values in the `All` dump equal the per-parameter reads. Groups give the instance
   counts directly: Ch 6, Morph **36** (4 channel strips × 9 points), Fx 4, MorphSystem 4, Ha 3, all others 1.
   `MorphSystemId`/`MorphSystemName` are byte arrays (4 / 256 bytes: "0001", "01 Basic"); a per-parameter
-  read returns only their first byte. `DawSendFxBus*` (0x19–0x1b) is in neither dump, so it is probably unused on the UR44.
+  read returns only their first byte. `DawSendFxBus*` (0x19–0x1b) is in neither dump, and has **no audible effect** (see "Class Compliant mode off"):
+  the FX Bus feeds REV-X at a fixed level whatever they're set to. Per-parameter reads answer (Off, -INF, C: the
+  defaults). Possibly for the Cubase integration or another model.
 * `tools/ur44.py dump` now uses one "All" request (0.5 s instead of 4 s; `--slow` reads parameter by parameter).
 
 `a` looks like a parameter ID and `b` like a channel/instance index (see below).
@@ -114,6 +116,25 @@ before trusting them (done in tools/ur44.py `wait_for`).
 ## Key binaries
 
 See [REVERSE_ENGINEERING.md](REVERSE_ENGINEERING.md) for which vendor binary does what, and where in memapi each piece lives.
+
+## Class Compliant mode off (confirmed)
+
+The [CC MODE] switch is read at power-on. With it off:
+
+* The device has another USB id, **0499:150e** (CC mode: 0499:1704), and one all-vendor-class configuration:
+  IF1/IF2 isochronous audio out/in (EP 0x07 / 0x86, 3 alt settings for 44.1/48, 88.2/96, 176.4/192 kHz), IF3 a bulk
+  pair (EP 0x01 / 0x82), IF4 the vendor bulk pair (EP 0x03 / 0x84). The Windows driver binds both ids.
+* Linux's snd-usb-audio supports it anyway (a quirk): **6 playback and 6 capture channels**, S24_3LE, all rates, and two
+  MIDI devices. The control port is **`hw:N,1,0`** (the second MIDI device; in CC mode it's subdevice 1 of device 0).
+* Playback channels (measured with the meters): **1/2 = DAW 1/2 → MIX 1, 3/4 = DAW 3/4 → MIX 2, 5/6 = the FX Bus**
+  (the Windows ASIO names: "UR44 Mix 1", "UR44 Mix 2", "UR44 FX Bus"). Capture: inputs 1–6, as in CC mode.
+* The **FX Bus goes straight into REV-X at a fixed level**: a tone on channels 5/6 shows on neither DAW meter, and
+  comes back only through the REV-X returns (`FxRevMixBus{1,2}Onf` / `FxRevBus{1,2}Level`: -34 dB at +6 dB return,
+  11 dB less at -5 dB, nothing with the return off). `DawSendFxBus*`, `FxRevBypass` and `PatchFxSend` made no
+  difference.
+* The state dump is the same (11 groups, 174 items), so the mode only changes the USB side.
+* ALSA UCM (alsa-ucm-conf 1.2.16) only matched the CC-mode ids; `linux/ucm2/` adds 0499:150e with an
+  "FX Bus" output (as upstream's UR44C profile names it). Submitted as alsa-project/alsa-ucm-conf#882.
 
 ## Mix buses (manual + device state)
 
@@ -160,6 +181,8 @@ The `Ha*` instance index is the analog input pair: 0 = inputs 1/2, 1 = 3/4, 2 = 
 * It's saved **only** when the [P] switch goes to standby (**confirmed**): a change (IN 6 MIX 2 pan) followed a few
   seconds later by pulling the power with [P] on was lost, and the device came back with exactly the state of the
   last standby. There's no save-as-you-go or delayed save.
+* The save at standby is quick (**confirmed**): a change followed by [P] to standby and pulling the power about
+  half a second later was kept, and nothing else differed.
 * The **store command** `F0 43 30 3E 14 03 02 01 <type:u16> F7` doesn't save either (**confirmed**). `type` is a
   data type, not a slot: MemAPI's PJ_COMMAND 1 is store(1) (scene) and 6 is store(2) (morph table), next to the
   type 1/2 dump requests; `MemAPI::SetSceneData` sends store(1) after the scene bulk dump when told to "send and
@@ -297,7 +320,7 @@ current state (kept over standby).
   (~7 KB). With 3 or 4 scenes back to back, only 2 were acknowledged, and a store command sent behind them was lost
   too. So a sender has to keep at most one bulk dump unacknowledged (the `03 02 02 <type>` reply) and send what
   comes after it once it's accepted. `Device::sendBulk()` does this, and queues small messages behind a pending
-  bulk dump to keep the order.
+  bulk dump to keep the order (**confirmed** in use: rapid scene recalls end on the last one).
 * **A scene is the `CurrentScene` payload**: `MemAPI::GetSceneData` is `GetCnvFileData("CurrentScene", 0x2774)`, the
   same F_/D_ chunk pair as a type 1 bulk dump. Stored on the host, the 32-byte chunk headers are **little-endian**
   (`74 27 00 00` at 24, u32 size at 28); the bodies are the same as the device's. Contents (9 groups):

@@ -162,10 +162,4 @@ length-prefixed PNG at data offset 0.
 
 ## Open items
 
-* Bulk dump *payload* layout (scene memory map: `fileItemMemoryTbl_*`, `CsmdFile`). The framing is
-  decoded (PROTOCOL.md). Store / bulk-send overwrite device memory, so test a read-only dump request first.
-* Meaning of the SetPrm `03` flag variant, Store variant 2, monitor-matrix mode values.
-* Level meters: start/stop and the reply framing are decoded (PROTOCOL.md). Still to do: the order of
-  the N values and their scale (dspMixFx's meter widget).
-* `FxRevTime` exact formula; factory scene file format.
-* Firmware update protocol, for a cross-platform updater.
+See [TODO.md](../TODO.md).

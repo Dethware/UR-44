@@ -18,7 +18,8 @@ No driver is needed.
 | `tools/ur44_sweet_spot.py` | The 34 factory Sweet Spot Data presets (Yamaha's, generated from the TOOLS .ssd files) |
 | `gui/` | **UR44 Control**, the Qt 6 mixer application (C++17, CMake). See [gui/README](gui/README) for details |
 | `docs/PROTOCOL.md` | The protocol as currently understood, with confirmed vs static-only marked |
-| `docs/REVERSE_ENGINEERING.md` | Vendor binaries, addresses, tooling, tricks, open items |
+| `docs/REVERSE_ENGINEERING.md` | Vendor binaries, addresses, tooling, tricks |
+| `TODO.md` | Outstanding work and ideas |
 | `docs/data/` | Raw evidence: descriptor dump, live address sweep, a state dump |
 | `re/` | Reproducible RE scripts: vendor extraction, generators, Ghidra runner, finders, sweep |
 | `vendor/` | (git-ignored) download cache, unpacked downloads, extracted binaries, decompilations |
