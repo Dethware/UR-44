@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- UR44 Control icon: three mixer faders. Own design (no vendor artwork). -->
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#3a3f47"/>
+      <stop offset="1" stop-color="#1f2329"/>
+    </linearGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f2f4f6"/>
+      <stop offset="1" stop-color="#aab1b8"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="112" height="112" rx="22" fill="url(#panel)"/>
+  <g stroke="#0d0f12" stroke-width="6" stroke-linecap="round">
+    <line x1="36" y1="28" x2="36" y2="100"/>
+    <line x1="64" y1="28" x2="64" y2="100"/>
+    <line x1="92" y1="28" x2="92" y2="100"/>
+  </g>
+  <g stroke="#3d9bd6" stroke-width="6" stroke-linecap="round">
+    <line x1="36" y1="66" x2="36" y2="100"/>
+    <line x1="64" y1="46" x2="64" y2="100"/>
+    <line x1="92" y1="80" x2="92" y2="100"/>
+  </g>
+  <g fill="url(#cap)" stroke="#5c636b" stroke-width="1.5">
+    <rect x="25" y="58" width="22" height="14" rx="3"/>
+    <rect x="53" y="38" width="22" height="14" rx="3"/>
+    <rect x="81" y="72" width="22" height="14" rx="3"/>
+  </g>
+  <g stroke="#1f2329" stroke-width="2">
+    <line x1="28" y1="65" x2="44" y2="65"/>
+    <line x1="56" y1="45" x2="72" y2="45"/>
+    <line x1="84" y1="79" x2="100" y2="79"/>
+  </g>
+</svg>

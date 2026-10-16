@@ -1,0 +1,13 @@
+UR44 Control
+Copyright (c) 2026 Petr Mrázek
+The code is under the Microsoft Public License (Ms-PL); see LICENSE.
+
+Not covered by that license:
+
+  The 34 Sweet Spot Data presets built into the application (tools/ur44_sweet_spot.py) come with
+  Yamaha/Steinberg's TOOLS for UR44, and carry their notice:
+      Copyright(C)2008 Yamaha Corporation All Right Reserved
+
+The UR44's control protocol was reverse engineered from TOOLS for UR44, for interoperability.
+This project is not affiliated with or endorsed by Yamaha Corporation or Steinberg Media Technologies.
+Steinberg, UR44, dspMixFx, REV-X and the other product names are trademarks of their respective owners.

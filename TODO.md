@@ -44,10 +44,11 @@ notes in [docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md).
       their Direct use case kept 4 capture channels (UCM evaluates `Macro` before `If`). Checked with alsaucm using the
       UR44 as a stand-in (bcdDevice 0212); not tested on the real devices. Follow up on review.
 
-- [ ] **Prepare the build system for standard Linux packaging.** Today the only install rule is the executable
-      (`install(TARGETS ur44-control DESTINATION bin)`). Missing: `GNUInstallDirs`, a `.desktop` file, an icon and
-      AppStream metainfo, building without the tests (`BUILD_TESTING`), and installing `LICENSE` and the README's license
-      note (the built-in Sweet Spot presets are Yamaha's, not Ms-PL). The About dialog has the credits. Build dependencies: Qt 6, ALSA, Python 3 (for the generated tables).
+- [ ] **Linux packaging**: the build system is ready (install rules with GNUInstallDirs, desktop entry, icon,
+      AppStream metadata, `BUILD_TESTING`, `LICENSE`/`NOTICE` in the doc directory). Left:
+      - a homepage URL in the metainfo (`appstreamcli validate` warns `url-homepage-missing`; Flathub requires it)
+      - screenshots in the metainfo, once there's a public place to host them
+      - distribution recipes (e.g. an Arch PKGBUILD) once it's published
 
 ## Application
 

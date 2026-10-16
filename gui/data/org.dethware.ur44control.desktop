@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=UR44 Control
+GenericName=Audio Interface Mixer
+Comment=Configure the DSP mixer and effects of the Steinberg UR44
+Exec=ur44-control
+Icon=org.dethware.ur44control
+Terminal=false
+Categories=AudioVideo;Audio;Mixer;Qt;
+Keywords=Steinberg;UR44;dspMixFx;mixer;reverb;REV-X;audio interface;

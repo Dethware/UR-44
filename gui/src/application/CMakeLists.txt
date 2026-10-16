@@ -38,7 +38,6 @@ qt_add_executable(ur44-control
 
 target_link_libraries(ur44-control PRIVATE ur44 shared shared_ui Qt6::Widgets)
 # One version number, from the project() call
-target_compile_definitions(ur44-control PRIVATE UR44_CONTROL_VERSION="${PROJECT_VERSION}")
+target_compile_definitions(ur44-control PRIVATE UR44_CONTROL_VERSION="${PROJECT_VERSION}" UR44_APP_ID="${UR44_APP_ID}")
 
-# Install the executable
-install(TARGETS ur44-control DESTINATION bin)
+install(TARGETS ur44-control RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

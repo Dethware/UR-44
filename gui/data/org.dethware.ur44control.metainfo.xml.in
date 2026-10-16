@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Configured by CMake: the version comes from project() -->
+<component type="desktop-application">
+  <id>org.dethware.ur44control</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MS-PL</project_license>
+  <name>UR44 Control</name>
+  <summary>Configure the DSP mixer of the Steinberg UR44 audio interface</summary>
+  <developer id="org.dethware">
+    <name>Petr Mrázek</name>
+  </developer>
+  <description>
+    <p>
+      UR44 Control configures the internal DSP mixer of the Steinberg UR44 USB audio interface, which otherwise
+      needs the vendor's Windows or macOS software.
+    </p>
+    <ul>
+      <li>Both mixes: input levels, pan, mute and solo, the computer's playback and the master levels</li>
+      <li>The Sweet Spot Morphing Channel Strip, with its built-in Sweet Spot Data presets</li>
+      <li>Guitar Amp Classics and the REV-X reverb</li>
+      <li>Prepared scenes, with import and export of dspMixFx scene files</li>
+      <li>Both of the device's USB modes, including the FX Bus with its CC MODE switch off</li>
+    </ul>
+    <p>
+      The control protocol was reverse engineered from Yamaha/Steinberg's TOOLS for UR44. This project is not
+      affiliated with or endorsed by Yamaha or Steinberg.
+    </p>
+  </description>
+  <launchable type="desktop-id">org.dethware.ur44control.desktop</launchable>
+  <provides>
+    <binary>ur44-control</binary>
+  </provides>
+  <supports>
+    <!-- Class Compliant mode, and with the CC MODE switch off -->
+    <modalias>usb:v0499p1704d*</modalias>
+    <modalias>usb:v0499p150Ed*</modalias>
+  </supports>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="@PROJECT_VERSION@" date="@UR44_RELEASE_DATE@"/>
+  </releases>
+</component>

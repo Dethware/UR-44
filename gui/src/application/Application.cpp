@@ -98,6 +98,8 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
     setApplicationName("UR44Control");
     setApplicationDisplayName("UR44 Control");
     setApplicationVersion(UR44_CONTROL_VERSION);
+    // matches the installed .desktop file: the Wayland app_id, and how desktops find the icon and name
+    setDesktopFileName(UR44_APP_ID);
 
     startTime = QDateTime::currentDateTime();
 

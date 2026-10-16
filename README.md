@@ -51,6 +51,20 @@ build/gui/src/application/ur44-control
 It finds the UR44 by its ALSA card name and owns the MIDI port while it runs, so close it before using
 `tools/ur44.py` (and the other way around).
 
+Installing (e.g. for a distribution package) uses the standard CMake and GNU directory variables:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=OFF
+cmake --build build
+DESTDIR="$pkgdir" cmake --install build
+```
+
+That installs `ur44-control`, a desktop entry, an icon and AppStream metadata (all named after the application ID
+`org.dethware.ur44control`), and `LICENSE`, `NOTICE` and this README into the doc directory. `BUILD_TESTING=OFF`
+skips the tests and the Qt Test dependency. The version is set in `gui/CMakeLists.txt` (`project()`, with the
+release date next to it for the AppStream metadata). The UCM profile in `linux/ucm2/` isn't installed: it belongs to
+alsa-ucm-conf.
+
 ## Rebuilding the generated files
 
 ```bash
