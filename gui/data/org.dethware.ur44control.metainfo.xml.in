@@ -26,6 +26,9 @@
       affiliated with or endorsed by Yamaha or Steinberg.
     </p>
   </description>
+  <url type="homepage">https://github.com/Dethware/UR-44</url>
+  <url type="bugtracker">https://github.com/Dethware/UR-44/issues</url>
+  <url type="vcs-browser">https://github.com/Dethware/UR-44</url>
   <launchable type="desktop-id">org.dethware.ur44control.desktop</launchable>
   <provides>
     <binary>ur44-control</binary>

@@ -44,14 +44,29 @@ notes in [docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md).
       their Direct use case kept 4 capture channels (UCM evaluates `Macro` before `If`). Checked with alsaucm using the
       UR44 as a stand-in (bcdDevice 0212); not tested on the real devices. Follow up on review.
 
-- [ ] **Linux packaging**: the build system is ready (install rules with GNUInstallDirs, desktop entry, icon,
-      AppStream metadata, `BUILD_TESTING`, `LICENSE`/`NOTICE` in the doc directory). Left:
-      - a homepage URL in the metainfo (`appstreamcli validate` warns `url-homepage-missing`; Flathub requires it)
-      - screenshots in the metainfo, once there's a public place to host them
-      - distribution recipes (e.g. an Arch PKGBUILD) once it's published
+- [ ] **Linux packaging**: the build system is ready (GNUInstallDirs, desktop entry, icon, AppStream metadata with
+      the GitHub links, `BUILD_TESTING`, `LICENSE`/`NOTICE`), and the AUR packages `ur44-control` and
+      `ur44-control-git` live next to this checkout, in `../aur/` (each its own AUR git repository). Left:
+      - tag `v0.1.0` on GitHub, then put the release tarball's checksum into `ur44-control` (`updpkgsums`) and
+        regenerate its `.SRCINFO`
+      - publish both to the AUR
+      - screenshots in the AppStream metadata
 
 ## Application
 
+- [ ] **Device communication redesign** (planned instead of small fixes). Known issues to cover:
+      - **Knob flicker at an end of its range**: dragging a knob past -INF (or its maximum) and on makes it
+        alternate with one step above. The pointer is warped back after every move event (X11), and the warp's
+        own event can land a pixel off the target (logical vs. device pixels), e.g. (3400,1023) for (3401,1023);
+        an upward one counts as a move up. With a warp per event, these echoes look like real 1 px moves.
+        An idea (untested): warp only after a long drift, and skip events until the pointer shows up at the target.
+      - **Stale confirmation replies**: each change is re-read ~150 ms later; a re-read sent just before a newer
+        change returns the old value and is applied anyway, so the UI briefly shows the old value (the device
+        itself ends right). Replies older than the value's latest change should be dropped.
+
+- [ ] **Undo/redo** on top of the Device state: a layer between Device and the UI that records changes (and their
+      previous values) as undoable steps. dspMixFx has none (its only undo is a text field's); scenes are the
+      closest thing it offers.
 - [ ] Effect graphs: EQ curve, compressor transfer curve, REV-X decay graph, like the dspMixFx editors.
 - [ ] Factory scenes: offer the six scenes embedded in the TOOLS Cubase templates (`re/extract_template_scenes.py`)
       as starting points, built in like the Sweet Spot presets.

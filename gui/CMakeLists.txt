@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.16)
 
 project(UR44Control VERSION 0.1.0 LANGUAGES CXX)
 # The date of this version, for the AppStream release entry; update it together with the version
-set(UR44_RELEASE_DATE "2026-10-16")
+set(UR44_RELEASE_DATE "2026-10-17")
 set(UR44_APP_ID "org.dethware.ur44control")
 
 include(GNUInstallDirs)
