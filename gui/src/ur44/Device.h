@@ -78,6 +78,9 @@ public:
     /// Sends a parameter change (clamped to the parameter's range). Returns false if not Ready or unknown.
     bool setParameter(uint16_t id, uint16_t index, int32_t value);
     bool setParameter(const QString& name, uint16_t index, int32_t value);
+    /// Sets every instance (e.g. all six inputs' level in a mix) to the same value, in one message
+    /// (Protocol::ALL_INSTANCES). Returns false if not Ready or unknown.
+    bool setParameterAllInstances(const QString& name, int32_t value);
 
     /// Requests meter frames while Ready; they arrive as meterFrame() about 20 times per second
     void setMetersEnabled(bool enabled);

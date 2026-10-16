@@ -1,6 +1,8 @@
 qt_add_library(shared_ui STATIC
     CustomMessageBox.cpp
     CustomMessageBox.h
+    Fader.cpp
+    Fader.h
     Knob.cpp
     Knob.h
 )

@@ -197,11 +197,16 @@ private:
         }
         else if (auto m = Protocol::parse(request); auto* pv = std::get_if<Protocol::ParameterValue>(&m))
         {
-            // a set (same layout as a reply)
-            uint32_t k = key(pv->id, pv->index);
-            if (!forced.contains(k))
+            // a set (same layout as a reply); index 0xffff sets every instance, like the real device
+            const Parameter* p = Parameters::instance().byId(pv->id);
+            const bool all = pv->index == Protocol::ALL_INSTANCES;
+            for (int i = all ? 0 : pv->index; i < (all ? (p ? p->instances : 0) : pv->index + 1); ++i)
             {
-                registers[k] = pv->value;
+                uint32_t k = key(pv->id, i);
+                if (!forced.contains(k))
+                {
+                    registers[k] = pv->value;
+                }
             }
         }
         else if (request.size() == 14 && request.startsWith(QByteArray::fromHex("F043303E140101")))
@@ -705,6 +710,32 @@ private slots:
     }
 
     // --- Scenes ---------------------------------------------------------------------------------------------------
+
+    void setParameterAllInstances_oneMessage()
+    {
+        makeDevice();
+        QVERIFY(!m_device->setParameterAllInstances("ChSendMixBus2Pan", 3)); // not connected
+        connectReady();
+        const uint16_t pan = P("ChSendMixBus2Pan").id;
+        QSignalSpy changes(m_device.get(), &Device::parameterChanged);
+        const int written = int(m_fake->written.size());
+
+        QVERIFY(m_device->setParameterAllInstances("ChSendMixBus2Pan", 3));
+        // the cache has all six right away, from one message
+        for (uint16_t ch = 0; ch < 6; ++ch)
+        {
+            QCOMPARE(m_device->value("ChSendMixBus2Pan", ch), std::optional<int32_t>(3));
+        }
+        QCOMPARE(changes.size(), 6);
+        QCOMPARE(m_fake->written.size(), written + 1);
+        QCOMPARE(m_fake->written.last(), Protocol::setParameter(pan, Protocol::ALL_INSTANCES, 3));
+        QTRY_COMPARE(m_fake->registers.value(FakeUR44::key(pan, 5)), uint32_t(3));
+        // other parameters untouched; values are clamped like single sets
+        QCOMPARE(m_device->value("ChSendMixBus1Pan", 0), std::optional<int32_t>(0));
+        QVERIFY(m_device->setParameterAllInstances("ChSendMixBus2Pan", 99));
+        QCOMPARE(m_device->value("ChSendMixBus2Pan", 2), std::optional<int32_t>(P("ChSendMixBus2Pan").max));
+        QVERIFY(!m_device->setParameterAllInstances("NoSuchParameter", 1));
+    }
 
     void scene_currentIsTheMixerState()
     {

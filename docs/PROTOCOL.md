@@ -148,6 +148,15 @@ The [CC MODE] switch is read at power-on. With it off:
   "Line2" (3/4) sinks. **Confirmed with the meters:** Line1 (DAW 1/2) feeds the MIX 1 DAW channel and
   Line2 (DAW 3/4) feeds the MIX 2 DAW channel.
 
+## All channels at once (confirmed)
+
+MemAPI's `SetPrmAllCh(id, value, send)` sends one set-parameter message with the instance index **`0xffff`**
+(as a u16: `03 7F 7F`), apparently meaning "all instances", and sets every instance in its own model. dspMixFx uses it for Ctrl+Shift+drag on an input fader (all six inputs' `ChSendMixBus<n>Level`
+to the dragged value; `FUN_00404de0`, only for channels 0–5) and for Ctrl+Shift+click on mute/solo (`FUN_00422ff0`).
+**Confirmed:** `F0 43 10 3E 14 01 01 00 00 10 03 7F 7F 00 00 00 00 03 F7` set `ChSendMixBus2Pan` of all six inputs
+to R3 in one message, left MIX 1's pans alone, and got no reply (like any set). The GUI uses it for the same
+shortcuts (`Device::setParameterAllInstances`).
+
 ## Unsolicited change notifications (confirmed)
 
 The device pushes a normal `F0 43 10 3E 14 01 01 <a> <b> <value> F7` message, the same format

@@ -46,6 +46,8 @@ private:
     void addDawColumn(class QGridLayout* grid, int column);
     void addMasterColumn(class QGridLayout* grid, int column);
     void updateSolo();
+    /// Ctrl+Shift+click on `mute` / `solo` applies to all the channels of the mix
+    void connectAllChannels(class QToolButton* mute, class QToolButton* solo);
 
     int m_bus;
     UR44::Device* m_device;

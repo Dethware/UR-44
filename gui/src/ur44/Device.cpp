@@ -400,6 +400,25 @@ bool Device::setParameter(const QString& name, uint16_t index, int32_t v)
     return p && setParameter(p->id, index, v);
 }
 
+bool Device::setParameterAllInstances(const QString& name, int32_t v)
+{
+    const Parameter* p = Parameters::instance().byName(name);
+    if (!isReady() || !p)
+    {
+        return false;
+    }
+    v = p->clamp(v);
+    send(Protocol::setParameter(p->id, Protocol::ALL_INSTANCES, uint32_t(v)));
+    for (uint16_t index = 0; index < p->instances; ++index)
+    {
+        m_setAt.insert(key(p->id, index), ++m_sequence);
+        storeValue(*p, index, v, true);
+        m_unconfirmed.insert(key(p->id, index));
+    }
+    m_confirmTimer.start();
+    return true;
+}
+
 void Device::sendConfirmations()
 {
     for (uint32_t k : std::as_const(m_unconfirmed))

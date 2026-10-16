@@ -3,19 +3,22 @@
 #include <QComboBox>
 #include <QFrame>
 #include <QGridLayout>
+#include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QMenu>
 #include <QPainter>
-#include <QSlider>
 #include <QToolButton>
 #include <QVBoxLayout>
 
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
 #include "Bindings.h"
 #include "Device.h"
 #include "EffectEditors.h"
+#include "Fader.h"
 #include "Knob.h"
 #include "LevelMeter.h"
 #include "Parameters.h"
@@ -62,6 +65,13 @@ QString dawSolo(int bus)
     return QString("DawSendMixBus%1SoloOnf").arg(bus);
 }
 
+/// Ctrl+Shift (Cmd+Shift on macOS): dspMixFx's modifier for changing all the channels of a mix at once
+bool allChannelsModifier()
+{
+    const auto all = Qt::ControlModifier | Qt::ShiftModifier;
+    return (QGuiApplication::keyboardModifiers() & all) == all;
+}
+
 /// A small square toggle like dspMixFx's, lit in `color` when checked
 
 /// A text toggle (INS.FX, Ch.Strip, SEND) in the same style, but wider
@@ -79,9 +89,38 @@ void addKnob(QGridLayout* grid, QWidget* knob, QWidget* label, int row, int colu
     grid->addWidget(label, row + 1, column, Qt::AlignHCenter | Qt::AlignTop);
 }
 
-QSlider* fader(QWidget* parent)
+/// dspMixFx's fader scale: notches at these levels, the ends drawn heavier. Only some are labelled: the scale is
+/// linear in the device's 0..127 steps, so the low end is crowded.
+const double FADER_MARKS_DB[] = {6, 0, -6, -12, -18, -30, -40, -50, -60};
+const double FADER_LABELS_DB[] = {6, 0, -12, -30};
+
+/// A level fader with the console scale. All the level parameters share one scale (-INF .. +6 dB, 0..127).
+Fader* fader(QWidget* parent)
 {
-    auto* f = new QSlider(Qt::Vertical, parent);
+    static const QList<Fader::Mark> marks = [] {
+        const Parameter& level = Parameters::instance()["ChSendMixBus1Level"];
+        QList<Fader::Mark> list;
+        for (double db : FADER_MARKS_DB)
+        {
+            // the value whose label is this level, e.g. "-6.00"
+            for (int v = level.min; v <= level.max; ++v)
+            {
+                bool ok = false;
+                if (std::abs(QString(level.label(v)).toDouble(&ok) - db) < 0.001 && ok)
+                {
+                    const bool labelled = std::find(std::begin(FADER_LABELS_DB), std::end(FADER_LABELS_DB), db) !=
+                                          std::end(FADER_LABELS_DB);
+                    const QString text = db > 0 ? QString("+%1").arg(db) : QString::number(db);
+                    list.append({v, labelled ? text : QString(), db == 6});
+                    break;
+                }
+            }
+        }
+        list.append({level.min, QStringLiteral("-\u221E"), true});
+        return list;
+    }();
+    auto* f = new Fader(parent);
+    f->setMarks(marks);
     f->setMinimumHeight(140);
     return f;
 }
@@ -315,10 +354,13 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
     auto* msLayout = new QHBoxLayout(muteSolo);
     msLayout->setContentsMargins(0, 0, 0, 0);
     msLayout->setSpacing(4);
-    auto* mute = squareButton("M", QColor(240, 130, 40), tr("Mute in MIX %1").arg(m_bus), muteSolo);
+    auto* mute = squareButton("M", QColor(240, 130, 40),
+                              tr("Mute in MIX %1 (Ctrl+Shift+click: all channels)").arg(m_bus), muteSolo);
     Bindings::toggle(mute, device, "ChSendMixBus" + b + "Onf", ch, true);
-    auto* solo = squareButton("S", QColor(240, 200, 40), tr("Solo in MIX %1").arg(m_bus), muteSolo);
+    auto* solo = squareButton("S", QColor(240, 200, 40),
+                              tr("Solo in MIX %1 (Ctrl+Shift+click: all channels)").arg(m_bus), muteSolo);
     Bindings::toggle(solo, device, channelSolo(m_bus), ch);
+    connectAllChannels(mute, solo);
     msLayout->addWidget(mute);
     msLayout->addWidget(solo);
     addCentered(grid, muteSolo, MuteSoloRow, column);
@@ -337,9 +379,24 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
 
     auto* level = fader(this);
     auto* levelLabel = caption(QString(), this);
-    Bindings::slider(level, device, "ChSendMixBus" + b + "Level", ch, levelLabel, {}, true);
+    // Ctrl+Shift (Cmd+Shift on macOS) + drag moves all the input faders of this mix to the same level, like dspMixFx
+    const QString levelName = "ChSendMixBus" + b + "Level";
+    Bindings::slider(level, device, levelName, ch, levelLabel,
+                     [device, levelName, ch](int32_t v) {
+                         if (allChannelsModifier())
+                         {
+                             device->setParameterAllInstances(levelName, v);
+                         }
+                         else
+                         {
+                             device->setParameter(levelName, ch, v);
+                         }
+                     },
+                     true);
     Bindings::describe(level, tr("Level for IN %1").arg(ch + 1),
-                       tr("Adjusts the level of the input in MIX %1.").arg(m_bus));
+                       tr("Adjusts the level of the input in MIX %1.\n"
+                          "Ctrl+Shift+drag moves all six input faders together.")
+                           .arg(m_bus));
     addCentered(grid, level, FaderRow, column);
     addCentered(grid, levelLabel, LevelLabelRow, column);
     addCentered(grid, caption(tr("IN %1").arg(ch + 1), this), NameRow, column);
@@ -376,10 +433,13 @@ void MixPage::addDawColumn(QGridLayout* grid, int column)
     auto* msLayout = new QHBoxLayout(muteSolo);
     msLayout->setContentsMargins(0, 0, 0, 0);
     msLayout->setSpacing(4);
-    auto* mute = squareButton("M", QColor(240, 130, 40), tr("Mute in MIX %1").arg(m_bus), muteSolo);
+    auto* mute = squareButton("M", QColor(240, 130, 40),
+                              tr("Mute in MIX %1 (Ctrl+Shift+click: all channels)").arg(m_bus), muteSolo);
     Bindings::toggle(mute, m_device, "DawSendMixBus" + b + "Onf", 0, true);
-    auto* solo = squareButton("S", QColor(240, 200, 40), tr("Solo in MIX %1").arg(m_bus), muteSolo);
+    auto* solo = squareButton("S", QColor(240, 200, 40),
+                              tr("Solo in MIX %1 (Ctrl+Shift+click: all channels)").arg(m_bus), muteSolo);
     Bindings::toggle(solo, m_device, dawSolo(m_bus), 0);
+    connectAllChannels(mute, solo);
     msLayout->addWidget(mute);
     msLayout->addWidget(solo);
     addCentered(grid, muteSolo, MuteSoloRow, column);
@@ -566,6 +626,28 @@ void MixPage::paintEvent(QPaintEvent* event)
             p.drawLine(QPointF(strip.left() + 3, y + 0.5), QPointF(strip.right() - 3, y + 0.5));
         }
     }
+}
+
+void MixPage::connectAllChannels(QToolButton* mute, QToolButton* solo)
+{
+    // Ctrl+Shift+click on a channel's M or S: the same state for the six inputs and the DAW channel, like dspMixFx
+    auto apply = [this](const QString& channelParameter, const QString& dawParameter, int32_t value) {
+        m_device->setParameterAllInstances(channelParameter, value);
+        m_device->setParameter(dawParameter, 0, value);
+    };
+    const QString b = QString::number(m_bus);
+    connect(mute, &QToolButton::clicked, this, [apply, b](bool muted) {
+        if (allChannelsModifier())
+        {
+            apply("ChSendMixBus" + b + "Onf", "DawSendMixBus" + b + "Onf", muted ? 0 : 1); // "on" is not muted
+        }
+    });
+    connect(solo, &QToolButton::clicked, this, [this, apply](bool soloed) {
+        if (allChannelsModifier())
+        {
+            apply(channelSolo(m_bus), dawSolo(m_bus), soloed ? 1 : 0);
+        }
+    });
 }
 
 void MixPage::updateSolo()

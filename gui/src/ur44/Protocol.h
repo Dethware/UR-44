@@ -24,6 +24,8 @@ namespace UR44::Protocol
 QByteArray getParameter(uint16_t id, uint16_t index);
 /// F0 43 10 3E 14 01 01 <id> <index> <value> F7
 QByteArray setParameter(uint16_t id, uint16_t index, uint32_t value);
+/// The instance index that sets every instance of a parameter at once (MemAPI SetPrmAllCh; confirmed)
+constexpr uint16_t ALL_INSTANCES = 0xFFFF;
 /// F0 43 30 3E 14 00 70 02 F7
 QByteArray getVersion();
 /// F0 43 30 3E 14 02 02 32 {7F|00} F7
