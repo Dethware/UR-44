@@ -34,6 +34,8 @@ protected:
     void hideEvent(QHideEvent* event) override;
 
 private:
+    /// PHONES 2 source: MIX 1 or MIX 2
+    QWidget* makePhones2Selector(QWidget* parent);
     void updateDeviceStatus();
     /// The status bar's activity section: idle, or writing to the device
     void updateActivityStatus();

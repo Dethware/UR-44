@@ -2,6 +2,7 @@
 #include <QDialog>
 #include <QTimer>
 
+#include "AboutDialog.h"
 #include "EffectEditors.h"
 
 #include "MainWindow.h"
@@ -19,7 +20,8 @@ int main(int argc, char *argv[])
                                                 "loaded (or after 5 s), then quit.", "file");
     QCommandLineOption tab("tab", "Show tab <index> first.", "index", "0");
     QCommandLineOption editor("editor", "Open an effect editor once the device state is loaded: reverb, amp, or "
-                                        "strip:<channel 1-6>. A screenshot then shows the editor.", "name");
+                                        "strip:<channel 1-6>, or about (the About dialog). A screenshot then shows "
+                                        "it.", "name");
     parser.addOption(screenshot);
     parser.addOption(tab);
     parser.addOption(editor);
@@ -40,6 +42,10 @@ int main(int argc, char *argv[])
             else if (name == "amp")
             {
                 EffectEditors::openGuitarAmp(w.device(), &w);
+            }
+            else if (name == "about")
+            {
+                AboutDialog::show(&w);
             }
             else if (name.startsWith("strip:"))
             {

@@ -14,4 +14,7 @@ namespace UR44::ReverbTime
 double seconds(int type, int roomSize, int time);
 /// "0.780", "2.47", "31.0"
 QString text(int type, int roomSize, int time);
+/// The range of reverb times: at `roomSize`, and over all room sizes (what the manual lists), e.g.
+/// "0.300 – 30.0 s at this room size (Plate: 0.176 – 52.0 s over all room sizes)" for Plate at room size 15
+QString rangeText(int type, int roomSize);
 }

@@ -39,16 +39,18 @@ notes in [docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md).
 - [ ] **UCM profile upstream**: [alsa-project/alsa-ucm-conf#882](https://github.com/alsa-project/alsa-ucm-conf/pull/882)
       (non-CC mode with the FX Bus; checked in both modes). Follow up on review; `linux/ucm2/` holds the same files
       until it's released. The earlier profile work, #584, is merged.
-- [ ] UR24C: UCM evaluates `Macro` before `If`, so its firmware-dependent `DirectCaptureChannels` probably never
-      reaches its Direct use case. Report or fix upstream separately.
-- [ ] **GUI in non-CC mode**: detection looks for MIDI device 0 with two subdevices; with [CC MODE] off the control
-      port is `hw:N,1,0` (USB id 0499:150e). Also `tools/ur44.py`'s default port.
-- [ ] Show the FX Bus in the UI when it exists (non-CC mode): it's an input to REV-X next to the channel sends.
+- [ ] **UR22C / UR24C Direct use case fix upstream**:
+      [alsa-project/alsa-ucm-conf#883](https://github.com/alsa-project/alsa-ucm-conf/pull/883). With firmware 01xx/02xx
+      their Direct use case kept 4 capture channels (UCM evaluates `Macro` before `If`). Checked with alsaucm using the
+      UR44 as a stand-in (bcdDevice 0212); not tested on the real devices. Follow up on review.
+
+- [ ] **Prepare the build system for standard Linux packaging.** Today the only install rule is the executable
+      (`install(TARGETS ur44-control DESTINATION bin)`). Missing: `GNUInstallDirs`, a `.desktop` file, an icon and
+      AppStream metainfo, building without the tests (`BUILD_TESTING`), and installing `LICENSE` and the README's license
+      note (the built-in Sweet Spot presets are Yamaha's, not Ms-PL). The About dialog has the credits. Build dependencies: Qt 6, ALSA, Python 3 (for the generated tables).
 
 ## Application
 
-- [ ] **About dialog**: credit Yamaha/Steinberg as the origin. The protocol was reverse engineered from their tools,
-      and the Sweet Spot presets are theirs ("Copyright(C)2008 Yamaha Corporation", `SweetSpotPreset::builtInNotice()`).
 - [ ] Effect graphs: EQ curve, compressor transfer curve, REV-X decay graph, like the dspMixFx editors.
 - [ ] Factory scenes: offer the six scenes embedded in the TOOLS Cubase templates (`re/extract_template_scenes.py`)
       as starting points, built in like the Sweet Spot presets.

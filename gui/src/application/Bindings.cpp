@@ -75,6 +75,7 @@ public:
     QString title;
     QString description;
     Format format;
+    RangeText range;
 };
 
 SliderInfo* infoOf(const QObject* slider)
@@ -108,7 +109,9 @@ public:
         {
             lines << info->description.toHtmlEscaped();
         }
-        lines << QObject::tr("Range: %1 \u2013 %2").arg(value(m_p->min), value(m_p->max)).toHtmlEscaped();
+        const QString range = info && info->range ? info->range()
+                                                  : QObject::tr("%1 \u2013 %2").arg(value(m_p->min), value(m_p->max));
+        lines << QObject::tr("Range: %1").arg(range).toHtmlEscaped();
         if (m_slider->isEnabled())
         {
             lines << QObject::tr("Value: %1").arg(value(m_slider->value())).toHtmlEscaped();
@@ -204,7 +207,8 @@ void slider(QAbstractSlider* slider, Device* device, const QString& name, uint16
     });
 }
 
-void describe(QAbstractSlider* slider, const QString& title, const QString& description, Format format)
+void describe(QAbstractSlider* slider, const QString& title, const QString& description, Format format,
+              RangeText range)
 {
     SliderInfo* info = infoOf(slider);
     if (!info)
@@ -214,6 +218,7 @@ void describe(QAbstractSlider* slider, const QString& title, const QString& desc
     info->title = title;
     info->description = description;
     info->format = std::move(format);
+    info->range = std::move(range);
 }
 
 void toggle(QAbstractButton* button, Device* device, const QString& name, uint16_t index, bool inverted,

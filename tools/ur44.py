@@ -28,7 +28,30 @@ from ur44_params import BY_ID, BY_NAME
 with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "ur44_labels.json")) as _f:
     LABELS = {int(k): v for k, v in json.load(_f).items()}
 
-PORT = "hw:0,0,1"  # control lives on the 2nd USB-MIDI port
+# The control port by USB id: in Class Compliant mode it's the 2nd subdevice of MIDI device 0; with the [CC MODE]
+# switch off the device has another id and it's MIDI device 1. Only the UR44 itself, not its successors.
+CONTROL_PORTS = {"0499:1704": "0,1", "0499:150e": "1,0"}
+
+
+def detect_port():
+    """The control port of the first ALSA card named "Steinberg UR44" (e.g. "hw:1,0,1"), or None."""
+    try:
+        cards = open("/proc/asound/cards").read().splitlines()
+    except OSError:
+        return None
+    for line in cards:
+        head, _, name = line.partition(": USB-Audio - ")
+        if name.strip() != "Steinberg UR44" or not head.strip()[:1].isdigit():
+            continue
+        card = head.split()[0]
+        try:
+            usb_id = open(f"/proc/asound/card{card}/usbid").read().strip()
+        except OSError:
+            continue
+        if usb_id in CONTROL_PORTS:
+            return f"hw:{card},{CONTROL_PORTS[usb_id]}"
+    return None
+
 REPLY_LEN = 19
 
 _lib = ctypes.CDLL(ctypes.util.find_library("asound"))
@@ -124,7 +147,10 @@ def check_index(row, index):
 
 
 class UR44:
-    def __init__(self, port=PORT):
+    def __init__(self, port=None):
+        port = port or detect_port()
+        if port is None:
+            raise OSError(19, "no Steinberg UR44 found (give the port explicitly, e.g. hw:1,0,1)")
         self.i = ctypes.c_void_p()
         self.o = ctypes.c_void_p()
         r = _lib.snd_rawmidi_open(ctypes.byref(self.i), ctypes.byref(self.o),
@@ -261,7 +287,7 @@ def _raise_interrupt(signum, frame):
 def main():
     num = lambda x: int(x, 0)
     ap = argparse.ArgumentParser()
-    ap.add_argument("--port", default=PORT)
+    ap.add_argument("--port", help="ALSA rawmidi control port, e.g. hw:1,0,1 (default: detected)")
     sp = ap.add_subparsers(dest="cmd", required=True)
     sp.add_parser("version")
     g = sp.add_parser("get", help="read a parameter (name or id)")

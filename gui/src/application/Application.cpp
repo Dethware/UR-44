@@ -97,7 +97,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
     setOrganizationDomain("dethware.org");
     setApplicationName("UR44Control");
     setApplicationDisplayName("UR44 Control");
-    setApplicationVersion("0.1.0");
+    setApplicationVersion(UR44_CONTROL_VERSION);
 
     startTime = QDateTime::currentDateTime();
 
@@ -183,7 +183,7 @@ Application::Application(int &argc, char **argv) : QApplication(argc, argv)
 
     // Set up paths
     {
-        qDebug() << applicationDisplayName() << ", (c) 2026-2026 " << organizationName();
+        qDebug() << applicationDisplayName() << ", (c) 2026 Petr Mrázek, Ms-PL";
         qDebug() << "Version                    : " << applicationVersion();
         qDebug() << "Work path                  : " << QDir::currentPath();
         qDebug() << "Config path                : " << configDir.absolutePath();

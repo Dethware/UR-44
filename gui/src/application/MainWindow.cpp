@@ -1,12 +1,17 @@
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QTabWidget>
+#include <QToolButton>
 
+#include "AboutDialog.h"
 #include "AlsaTransport.h"
 #include "Application.h"
+#include "Bindings.h"
 #include "Device.h"
 #include "DevicePage.h"
 #include "MixPage.h"
 #include "ScenesPanel.h"
+#include "Widgets.h"
 
 #include "MainWindow.h"
 #include "ui_MainWindow.h"
@@ -35,6 +40,21 @@ MainWindow::MainWindow(QWidget *parent)
     m_ui->tabs->addTab(new DevicePage(m_device, m_ui->tabs), tr("Device"));
     m_ui->tabs->setTabToolTip(0, tr("MAIN OUTPUT, LINE OUTPUT 1/2, PHONES 1"));
     m_ui->tabs->setTabToolTip(1, tr("LINE OUTPUT 3/4, and PHONES 2 if selected"));
+
+    // no menu bar: PHONES 2 and About sit in the free space next to the tabs
+    auto* corner = new QWidget(m_ui->tabs);
+    auto* cornerLayout = new QHBoxLayout(corner);
+    cornerLayout->setContentsMargins(0, 0, 4, 0);
+    cornerLayout->setSpacing(4);
+    cornerLayout->addWidget(makePhones2Selector(corner));
+    cornerLayout->addSpacing(12);
+    auto* about = new QToolButton(corner);
+    about->setText(tr("About"));
+    about->setAutoRaise(true);
+    about->setToolTip(tr("Version, license and credits"));
+    connect(about, &QToolButton::clicked, this, [this]() { AboutDialog::show(this); });
+    cornerLayout->addWidget(about);
+    m_ui->tabs->setCornerWidget(corner, Qt::TopRightCorner);
 
     // prepared scenes, next to the pages
     auto* scenes = new ScenesPanel(m_device, m_ui->centralWidget);
@@ -67,6 +87,49 @@ MainWindow::~MainWindow()
     // The device would otherwise be destroyed last, after the pages and status bar it notifies
     delete m_device;
     m_device = nullptr;
+}
+
+QWidget* MainWindow::makePhones2Selector(QWidget* parent)
+{
+    // PHONES 1 always plays MIX 1; PHONES 2 plays either mix (PatchAuxPhoneOutput: 0 = MIX 1, 1 = MIX 2)
+    auto* box = new QWidget(parent);
+    auto* layout = new QHBoxLayout(box);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(2);
+    layout->addWidget(Widgets::caption(tr("PHONES 2"), box));
+    layout->addSpacing(4);
+    Device* device = m_device;
+    QList<QToolButton*> buttons;
+    for (int bus : {1, 2})
+    {
+        auto* b = Widgets::textButton(tr("MIX %1").arg(bus), QColor(70, 200, 90),
+                                      tr("PHONES 2 plays MIX %1").arg(bus), box);
+        b->setFixedWidth(48);
+        layout->addWidget(b);
+        buttons.append(b);
+    }
+    auto refresh = [buttons, device]() {
+        const auto source = device->value("PatchAuxPhoneOutput");
+        for (int i = 0; i < buttons.size(); ++i)
+        {
+            QSignalBlocker blocker(buttons[i]);
+            buttons[i]->setChecked(source == i);
+            buttons[i]->setEnabled(device->isReady());
+        }
+    };
+    for (int i = 0; i < buttons.size(); ++i)
+    {
+        // like radio buttons: clicking the lit one keeps it lit
+        connect(buttons[i], &QToolButton::clicked, box, [device, i, refresh]() {
+            device->setParameter("PatchAuxPhoneOutput", 0, i);
+            refresh();
+        });
+    }
+    Bindings::follow(box, device, "PatchAuxPhoneOutput", 0, [refresh](int32_t) { refresh(); });
+    connect(device, &Device::stateChanged, box, refresh);
+    refresh();
+    box->setToolTip(tr("What PHONES 2 plays. PHONES 1 always plays MIX 1."));
+    return box;
 }
 
 void MainWindow::showTab(int index)

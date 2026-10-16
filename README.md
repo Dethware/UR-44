@@ -34,7 +34,8 @@ python3 tools/ur44.py phones2 2        # PHONES 2 listens to MIX 2
 python3 tools/ur44.py monitor          # watch unsolicited changes (e.g. +48V switches)
 ```
 
-The ALSA port defaults to `hw:0,0,1`; override it with `--port`.
+The control port is found automatically: `hw:N,0,1` in Class Compliant mode (USB id 0499:1704), `hw:N,1,0` with
+the [CC MODE] switch off (0499:150e). Override it with `--port`.
 
 ## The GUI
 
@@ -61,3 +62,12 @@ python3 -I re/gen_params.py vendor/extracted/tools_v222/dspmixfx_x86/memapi_ur44
 python3 -I re/dump_memapi_labels.py vendor/extracted/tools_v222/dspmixfx_x86/memapi_ur44.dll > tools/ur44_labels.json
 re/ghidra/decompile_all.sh                               # optional, slow
 ```
+
+## License
+
+The code is under the [Microsoft Public License (Ms-PL)](LICENSE).
+
+Not covered by it: the 34 Sweet Spot Data presets in `tools/ur44_sweet_spot.py` (and built into the GUI from it)
+come with Yamaha/Steinberg's TOOLS for UR44 and carry their notice, "Copyright(C)2008 Yamaha Corporation All Right
+Reserved". The UR44's control protocol was reverse engineered from TOOLS for UR44 for interoperability; this project
+isn't affiliated with or endorsed by Yamaha or Steinberg.

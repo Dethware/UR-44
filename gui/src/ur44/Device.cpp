@@ -351,6 +351,11 @@ void Device::storeValue(const Parameter& p, uint16_t index, int32_t value, bool 
     }
 }
 
+bool Device::hasFxBus() const
+{
+    return m_transport->isOpen() && m_transport->hasFxBus();
+}
+
 std::optional<int32_t> Device::value(uint16_t id, uint16_t index) const
 {
     auto it = m_values.constFind(key(id, index));

@@ -445,6 +445,10 @@ ReverbEditor::ReverbEditor(Device* device, QWidget* parent) : QDialog(parent)
                        [device](int32_t v) {
                            return ReverbTime::text(device->value("FxRevType").value_or(0),
                                                    device->value("FxRevRoomSize").value_or(0), v) + " s";
+                       },
+                       [device]() {
+                           return ReverbTime::rangeText(device->value("FxRevType").value_or(0),
+                                                        device->value("FxRevRoomSize").value_or(0));
                        });
     // the time depends on the type and room size (computed like dspMixFx)
     auto showTime = [device, timeValue, time]() {

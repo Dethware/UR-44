@@ -126,6 +126,7 @@ The [CC MODE] switch is read at power-on. With it off:
   pair (EP 0x01 / 0x82), IF4 the vendor bulk pair (EP 0x03 / 0x84). The Windows driver binds both ids.
 * Linux's snd-usb-audio supports it anyway (a quirk): **6 playback and 6 capture channels**, S24_3LE, all rates, and two
   MIDI devices. The control port is **`hw:N,1,0`** (the second MIDI device; in CC mode it's subdevice 1 of device 0).
+  The GUI and `tools/ur44.py` pick it by the card's USB id (`/proc/asound/cardN/usbid`).
 * Playback channels (measured with the meters): **1/2 = DAW 1/2 → MIX 1, 3/4 = DAW 3/4 → MIX 2, 5/6 = the FX Bus**
   (the Windows ASIO names: "UR44 Mix 1", "UR44 Mix 2", "UR44 FX Bus"). Capture: inputs 1–6, as in CC mode.
 * The **FX Bus goes straight into REV-X at a fixed level**: a tone on channels 5/6 shows on neither DAW meter, and

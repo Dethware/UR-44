@@ -12,6 +12,17 @@ class ParametersTest : public QObject
     Q_OBJECT
 
 private slots:
+    void reverbTime_rangeText()
+    {
+        // over all room sizes: the ranges the operation manual lists per type
+        QCOMPARE(ReverbTime::rangeText(0, 30), QString("0.300 \u2013 30.0 s at this room size (Hall: 0.103 \u2013 31.0 s "
+                                                       "over all room sizes)"));
+        QCOMPARE(ReverbTime::rangeText(1, 0), QString("0.152 \u2013 15.2 s at this room size (Room: 0.152 \u2013 45.3 s "
+                                                      "over all room sizes)"));
+        QCOMPARE(ReverbTime::rangeText(2, 15), QString("0.300 \u2013 30.0 s at this room size (Plate: 0.176 \u2013 52.0 s "
+                                                       "over all room sizes)"));
+    }
+
     void table_isComplete()
     {
         const Parameters& p = Parameters::instance();

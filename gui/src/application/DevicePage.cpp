@@ -90,9 +90,15 @@ DevicePage::DevicePage(Device* device, QWidget* parent) : QWidget(parent)
     auto* port = new QLabel(status);
     statusForm->addRow(tr("Firmware:"), firmware);
     statusForm->addRow(tr("MIDI port:"), port);
-    auto updateStatus = [device, firmware, port]() {
+    auto* mode = new QLabel(status);
+    mode->setToolTip(tr("Set with the [CC MODE] switch on the back, read when the UR44 is switched on"));
+    statusForm->addRow(tr("USB mode:"), mode);
+    auto updateStatus = [device, firmware, port, mode]() {
         firmware->setText(device->isReady() ? device->firmwareVersion() : tr("-"));
         port->setText(device->port().isEmpty() ? tr("-") : device->port());
+        mode->setText(!device->isReady()  ? tr("-")
+                      : device->hasFxBus() ? tr("[CC MODE] off: 6 outputs (MIX 1, MIX 2, FX Bus to REV-X)")
+                                           : tr("Class Compliant: 4 outputs (MIX 1, MIX 2)"));
     };
     connect(device, &Device::stateChanged, this, updateStatus);
     updateStatus();

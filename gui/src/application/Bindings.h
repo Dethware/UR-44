@@ -39,10 +39,14 @@ void slider(QAbstractSlider* slider, UR44::Device* device, const QString& parame
 /// Formats a value for a tooltip, for sliders whose value text isn't the parameter's own (the reverb time)
 using Format = std::function<QString(int32_t value)>;
 
+/// The text after "Range:" in a tooltip, for sliders whose range isn't simply the first and last value
+using RangeText = std::function<QString()>;
+
 /// What a bound slider does, for its tooltip: `title` ("REV-X Send for IN 1") and `description` above the range,
-/// the current value and the double-click default. `format` replaces the parameter's value text.
+/// the current value and the double-click default. `format` replaces the parameter's value text, `range` the range.
 /// Can be called before or after slider().
-void describe(QAbstractSlider* slider, const QString& title, const QString& description, Format format = {});
+void describe(QAbstractSlider* slider, const QString& title, const QString& description, Format format = {},
+              RangeText range = {});
 
 /// A checkable button for an on/off parameter (0/1). `inverted`: checked means 0 (a mute button for an "on"
 /// parameter). If `onText` / `offText` are given, the text follows the state.

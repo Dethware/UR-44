@@ -1,6 +1,9 @@
 #include "AlsaTransport.h"
 
 #include <QDebug>
+#include <QFile>
+#include <QRegularExpression>
+#include <QStringList>
 #include <QSocketNotifier>
 
 #include <alsa/asoundlib.h>
@@ -37,21 +40,55 @@ QString AlsaTransport::detect()
             isUR44 = cardName == "Steinberg UR44";
         }
 
-        // The control port is subdevice 1 of rawmidi device 0
-        bool hasPort = false;
+        // Where the control port is depends on the [CC MODE] switch (the device has another USB id without it)
+        QString suffix;
         if (isUR44)
         {
+            QFile usbId(QString("/proc/asound/card%1/usbid").arg(card));
+            if (usbId.open(QIODevice::ReadOnly))
+            {
+                suffix = controlPortSuffix(usbId.readAll().trimmed());
+            }
+            if (suffix.isEmpty())
+            {
+                qWarning() << "Steinberg UR44 card" << card << "with an unknown USB id; not using it";
+            }
+        }
+        bool hasPort = false;
+        if (!suffix.isEmpty())
+        {
+            // check that the port is there: ",D,S" = rawmidi device D, subdevice S
+            const QStringList parts = suffix.mid(1).split(',');
             snd_rawmidi_info_t* rinfo;
             snd_rawmidi_info_alloca(&rinfo);
-            snd_rawmidi_info_set_device(rinfo, 0);
+            snd_rawmidi_info_set_device(rinfo, parts.at(0).toUInt());
+            snd_rawmidi_info_set_subdevice(rinfo, parts.at(1).toInt());
             snd_rawmidi_info_set_stream(rinfo, SND_RAWMIDI_STREAM_INPUT);
-            hasPort = snd_ctl_rawmidi_info(ctl, rinfo) == 0 && snd_rawmidi_info_get_subdevices_count(rinfo) >= 2;
+            hasPort = snd_ctl_rawmidi_info(ctl, rinfo) == 0;
         }
         snd_ctl_close(ctl);
         if (hasPort)
         {
-            return hw + ",0,1";
+            return hw + suffix;
         }
+    }
+    return QString();
+}
+
+QString AlsaTransport::alsaVersion()
+{
+    return QString::fromLatin1(snd_asoundlib_version());
+}
+
+QString AlsaTransport::controlPortSuffix(const QByteArray& usbId)
+{
+    if (usbId == "0499:1704")
+    {
+        return ",0,1";
+    }
+    if (usbId == "0499:150e")
+    {
+        return ",1,0";
     }
     return QString();
 }
@@ -88,7 +125,18 @@ bool AlsaTransport::open(const QString& port, QString* error)
     {
         // whatever was pending belongs to a previous owner of the port
     }
-    qDebug() << "Opened" << port;
+    // which mode the device is in: its USB id, from the card number in "hw:N,D,S"
+    m_usbId.clear();
+    static const QRegularExpression cardNumber("^hw:(\\d+),");
+    if (auto match = cardNumber.match(port); match.hasMatch())
+    {
+        QFile usbId(QString("/proc/asound/card%1/usbid").arg(match.captured(1)));
+        if (usbId.open(QIODevice::ReadOnly))
+        {
+            m_usbId = usbId.readAll().trimmed();
+        }
+    }
+    qDebug() << "Opened" << port << m_usbId;
     return true;
 }
 

@@ -64,6 +64,8 @@ public:
     QString port() const { return m_currentPort; }
     /// Why the last connection attempt failed
     QString lastError() const { return m_lastError; }
+    /// Whether the connected device has the FX Bus (the UR44 with its [CC MODE] switch off)
+    bool hasFxBus() const;
     /// e.g. "BOOT V2.12, MAIN V2.12"
     QString firmwareVersion() const { return m_version; }
 

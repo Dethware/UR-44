@@ -24,6 +24,9 @@ public:
     virtual void close() = 0;
     virtual bool isOpen() const = 0;
     virtual bool write(const QByteArray& bytes) = 0;
+    /// Whether the open device has the FX Bus: two more playback channels that feed REV-X, with the UR44's
+    /// [CC MODE] switch off (docs/PROTOCOL.md, "Class Compliant mode off")
+    virtual bool hasFxBus() const { return false; }
 
 signals:
     void received(const QByteArray& bytes);

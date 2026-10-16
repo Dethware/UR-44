@@ -7,7 +7,6 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPainter>
-#include <QPushButton>
 #include <QSlider>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -114,7 +113,6 @@ MixPage::MixPage(int bus, Device* device, QWidget* parent) : QWidget(parent), m_
         grid->setRowMinimumHeight(gap, 5);
     }
 
-    outer->addWidget(makeSidePanel());
 
     const Parameters& params = Parameters::instance();
     const uint16_t chSoloId = params[channelSolo(bus)].id;
@@ -350,9 +348,22 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
 void MixPage::addDawColumn(QGridLayout* grid, int column)
 {
     const QString b = QString::number(m_bus);
+    auto* source = caption(tr("DAW"), this);
+    // MIX 1 plays DAW 1/2, MIX 2 plays DAW 3/4 (see the name below)
+    source->setToolTip(tr("Playback from the computer"));
+    addCentered(grid, source, InputTypeRow, column);
     m_dawMeter = new LevelMeter(2, this);
     m_dawMeter->setFixedHeight(90);
     addCentered(grid, m_dawMeter, MeterRow, column);
+
+    // With the [CC MODE] switch off the computer has a third output, the FX Bus, which goes straight into REV-X
+    auto* fxBus = caption(tr("FX BUS\n\u2192 REV-X"), this);
+    fxBus->setToolTip(tr("The computer's \"FX Bus\" output goes straight into REV-X, at a fixed level.\n"
+                         "Hear it through REV-X's RTN in MIX 1 or MIX 2."));
+    addCentered(grid, fxBus, FxSwitchRow, column);
+    auto showFxBus = [fxBus, device = m_device]() { fxBus->setVisible(device->isReady() && device->hasFxBus()); };
+    connect(m_device, &Device::stateChanged, fxBus, showFxBus);
+    showFxBus();
 
     auto* pan = new Knob(PAN_COLOR, this);
     auto* panLabel = caption(QString(), this);
@@ -390,6 +401,21 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     Device* device = m_device;
     const int bus = m_bus;
 
+    // where the mix goes: the outputs, and with loopback (MIX 1 only) back to the computer as well
+    auto* destination = caption(tr("OUT"), this);
+    const QString outputs = bus == 1 ? tr("MAIN OUTPUT, LINE OUTPUT 1/2 and PHONES 1 (and PHONES 2 if it plays MIX 1)")
+                                     : tr("LINE OUTPUT 3/4 (and PHONES 2 if it plays MIX 2)");
+    destination->setToolTip(tr("MIX %1 goes to %2").arg(bus).arg(outputs));
+    if (bus == 1)
+    {
+        Bindings::follow(destination, device, "PatchLoopbackMode", 0, [destination, outputs](int32_t loopback) {
+            destination->setText(loopback ? tr("OUT + DAW") : tr("OUT"));
+            destination->setToolTip(loopback ? tr("MIX 1 goes to %1, and back to the computer (loopback is on)")
+                                                   .arg(outputs)
+                                             : tr("MIX 1 goes to %1").arg(outputs));
+        });
+    }
+    addCentered(grid, destination, InputTypeRow, column);
     m_masterMeter = new LevelMeter(2, this);
     m_masterMeter->setFixedHeight(90);
     addCentered(grid, m_masterMeter, MeterRow, column);
@@ -447,6 +473,10 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
                        [device](int32_t v) {
                            return ReverbTime::text(device->value("FxRevType").value_or(0),
                                                    device->value("FxRevRoomSize").value_or(0), v) + " s";
+                       },
+                       [device]() {
+                           return ReverbTime::rangeText(device->value("FxRevType").value_or(0),
+                                                        device->value("FxRevRoomSize").value_or(0));
                        });
     // the time depends on the type and room size (dspMixFx computes it the same way)
     auto showTime = [device, timeLabel, time]() {
@@ -495,50 +525,6 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     addCentered(grid, caption(tr("MASTER"), this), NameRow, column);
 }
 
-QWidget* MixPage::makeSidePanel()
-{
-    auto* panel = new QWidget(this);
-    auto* layout = new QVBoxLayout(panel);
-    layout->setContentsMargins(0, 0, 0, 0);
-
-    // Solo status: soloing any channel mutes the rest of this mix, which is easy to forget
-    m_soloIndicator = new QLabel(tr("SOLO"), panel);
-    m_soloIndicator->setAlignment(Qt::AlignCenter);
-    m_soloIndicator->setMargin(3);
-    layout->addWidget(m_soloIndicator);
-    m_clearSolo = new QPushButton(tr("Clear solo"), panel);
-    m_clearSolo->setToolTip(tr("Turn off every solo in this mix"));
-    connect(m_clearSolo, &QPushButton::clicked, this, &MixPage::clearSolo);
-    layout->addWidget(m_clearSolo);
-    layout->addStretch();
-
-    // PHONES: 1 always plays MIX 1; 2 plays the MIX selected for it
-    auto* phonesRow = new QHBoxLayout;
-    auto* phones1 = squareButton("1", QColor(70, 200, 90), tr("PHONES 1 always plays MIX 1"), panel);
-    phones1->setChecked(m_bus == 1);
-    phones1->setEnabled(false);
-    auto* phones2 = squareButton("2", QColor(70, 200, 90), QString(), panel);
-    const int bus = m_bus;
-    Device* device = m_device;
-    Bindings::follow(phones2, device, "PatchAuxPhoneOutput", 0, [phones2, bus](int32_t v) {
-        QSignalBlocker blocker(phones2);
-        phones2->setChecked(v == bus - 1);
-        phones2->setToolTip(v == bus - 1 ? tr("PHONES 2 plays MIX %1").arg(bus)
-                                         : tr("Click to play MIX %1 on PHONES 2").arg(bus));
-    });
-    connect(phones2, &QToolButton::clicked, this, [phones2, device, bus]() {
-        device->setParameter("PatchAuxPhoneOutput", 0, bus - 1);
-        phones2->setChecked(device->value("PatchAuxPhoneOutput") == bus - 1);
-    });
-    connect(device, &Device::stateChanged, phones2, [phones2, device]() { phones2->setEnabled(device->isReady()); });
-    phones2->setEnabled(device->isReady());
-    phonesRow->addWidget(phones1);
-    phonesRow->addWidget(phones2);
-    layout->addLayout(phonesRow);
-    layout->addWidget(caption(tr("PHONES"), panel));
-    return panel;
-}
-
 void MixPage::paintEvent(QPaintEvent* event)
 {
     QWidget::paintEvent(event);
@@ -584,50 +570,16 @@ void MixPage::paintEvent(QPaintEvent* event)
 
 void MixPage::updateSolo()
 {
-    QStringList soloed;
-    for (uint16_t ch = 0; ch < 6; ++ch)
+    // soloing any channel mutes the rest of this mix, which is easy to forget: the tab says so (MainWindow)
+    bool active = m_device->isReady() && m_device->value(dawSolo(m_bus)).value_or(0);
+    for (uint16_t ch = 0; ch < 6 && !active; ++ch)
     {
-        if (m_device->value(channelSolo(m_bus), ch).value_or(0))
-        {
-            soloed.append(tr("IN %1").arg(ch + 1));
-        }
+        active = m_device->isReady() && m_device->value(channelSolo(m_bus), ch).value_or(0);
     }
-    if (m_device->value(dawSolo(m_bus)).value_or(0))
-    {
-        soloed.append(tr("DAW"));
-    }
-
-    bool active = m_device->isReady() && !soloed.isEmpty();
-    // off: an unlit lamp, outlined and dimmed but readable; the same border and weight keep the size steady
-    m_soloIndicator->setStyleSheet(
-        active ? "QLabel { background: #d08000; color: black; font-weight: bold; border: 1px solid #d08000;"
-                 " border-radius: 3px; }"
-               : "QLabel { background: rgba(128, 128, 128, 40); color: rgba(128, 128, 128, 200); font-weight: bold;"
-                 " border: 1px solid rgba(128, 128, 128, 110); border-radius: 3px; }");
-    m_soloIndicator->setToolTip(active ? tr("Soloed: %1. The other channels of this mix are muted.")
-                                             .arg(soloed.join(", "))
-                                       : tr("Nothing is soloed in this mix"));
-    m_clearSolo->setEnabled(active);
-
     if (active != m_soloActive)
     {
         m_soloActive = active;
         emit soloActiveChanged(active);
-    }
-}
-
-void MixPage::clearSolo()
-{
-    for (uint16_t ch = 0; ch < 6; ++ch)
-    {
-        if (m_device->value(channelSolo(m_bus), ch).value_or(0))
-        {
-            m_device->setParameter(channelSolo(m_bus), ch, 0);
-        }
-    }
-    if (m_device->value(dawSolo(m_bus)).value_or(0))
-    {
-        m_device->setParameter(dawSolo(m_bus), 0, 0);
     }
 }
 

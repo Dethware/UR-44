@@ -1,5 +1,6 @@
 #include <QtTest>
 
+#include "AlsaTransport.h"
 #include "Protocol.h"
 
 using namespace UR44;
@@ -18,6 +19,15 @@ class ProtocolTest : public QObject
     Q_OBJECT
 
 private slots:
+    void controlPort_byUsbId()
+    {
+        // Class Compliant mode, [CC MODE] off, and anything else (successors aren't supported)
+        QCOMPARE(AlsaTransport::controlPortSuffix("0499:1704"), QString(",0,1"));
+        QCOMPARE(AlsaTransport::controlPortSuffix("0499:150e"), QString(",1,0"));
+        QVERIFY(AlsaTransport::controlPortSuffix("0499:1730").isEmpty()); // UR44C
+        QVERIFY(AlsaTransport::controlPortSuffix("").isEmpty());
+    }
+
     // Byte sequences confirmed against the device (docs/PROTOCOL.md)
     void encode_matchesKnownMessages()
     {

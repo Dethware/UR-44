@@ -6,8 +6,6 @@
 #include <cstdint>
 
 class LevelMeter;
-class QLabel;
-class QPushButton;
 
 namespace UR44
 {
@@ -47,9 +45,7 @@ private:
     void addInputColumn(class QGridLayout* grid, int column, uint16_t ch);
     void addDawColumn(class QGridLayout* grid, int column);
     void addMasterColumn(class QGridLayout* grid, int column);
-    QWidget* makeSidePanel();
     void updateSolo();
-    void clearSolo();
 
     int m_bus;
     UR44::Device* m_device;
@@ -60,7 +56,5 @@ private:
     class QGridLayout* m_grid = nullptr;
     QList<int> m_stripColumns;
 
-    QLabel* m_soloIndicator = nullptr;
-    QPushButton* m_clearSolo = nullptr;
     bool m_soloActive = false;
 };

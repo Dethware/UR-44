@@ -1,5 +1,7 @@
 #include "ReverbTime.h"
 
+#include <QObject>
+
 #include <cmath>
 #include <iterator>
 
@@ -29,6 +31,18 @@ double seconds(int type, int roomSize, int time)
     // computed in float like the original (cvtsd2ss), then rounded to milliseconds
     float factor = float(diff > 0 ? std::pow(0.965, diff) : std::pow(1.035, -diff));
     return std::trunc(double(factor) * BASE_TIMES[time] * 1000.0 + 0.5) * 0.001;
+}
+
+QString rangeText(int type, int roomSize)
+{
+    constexpr int LAST_TIME = int(std::size(BASE_TIMES)) - 1;
+    constexpr int LAST_ROOM_SIZE = 31;
+    static const char* const TYPES[] = {QT_TRANSLATE_NOOP("ReverbTime", "Hall"), QT_TRANSLATE_NOOP("ReverbTime", "Room"),
+                                        QT_TRANSLATE_NOOP("ReverbTime", "Plate")};
+    const QString name = type >= 0 && type < 3 ? QObject::tr(TYPES[type]) : QString::number(type);
+    return QObject::tr("%1 \u2013 %2 s at this room size (%3: %4 \u2013 %5 s over all room sizes)")
+        .arg(text(type, roomSize, 0), text(type, roomSize, LAST_TIME), name, text(type, 0, 0),
+             text(type, LAST_ROOM_SIZE, LAST_TIME));
 }
 
 QString text(int type, int roomSize, int time)
