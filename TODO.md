@@ -13,15 +13,6 @@ outside the repository, in the workspace's `../TODO.md`.
       (e.g. record through the DAW with the strip on INS vs MON and compare).
 - [ ] **`HaInputGain[2]` = LINE 5/6 reference level**, with 1 = -10 dBV (from memapi's default and the manual's
       stated default). `[0..1]` presumably unused.
-- [x] **What the device does with `ChPairOnf` by itself**: it links the pair in the firmware (copies changes to the
-      partner without reporting them, stereo strip, strip swap on unpairing); USB unaffected. See docs/PROTOCOL.md.
-- [x] **Pairing, the rest**: MIX 2, solos, send switches, pans, the fader link, the copy direction (left to right),
-      whether anything is reported (nothing is). See docs/PROTOCOL.md.
-- [x] **The guitar amp on a paired channel**: pairing removes it; inserted on a paired channel, it's accepted on
-      that channel only. See docs/PROTOCOL.md.
-- [ ] **The fader link, by experiment**: which faders a pair has and which levels each one controls, with
-      `ChFaderLinkOnf` on and off (MemAPI: with it off, the two channels' MIX 1/2 levels are separate; the newer
-      dspMixFx shows one fader per pair when linked).
 - [ ] **Exported `.UR44` files in dspMixFx** (macOS). Ours leave out the per-scene UI memory elements
       (`MuteStatus`, `FxInsPosStatus`, `ChFxTypeStatus`); dspMixFx's writer treats them as optional, its reader is
       untested with files that lack them.
@@ -54,29 +45,20 @@ outside the repository, in the workspace's `../TODO.md`.
       review and the other upstream work are tracked in the workspace's `../TODO.md`).
 
 ## Application
+- [ ] **Knob flicker at an end of its range**: dragging a knob past -INF (or its maximum) and on makes it
+      alternate with one step above. The cause is unknown: it could be our code, Qt, the X server (XLibre) or
+      the kernel. One observation: the pointer is warped back after every move event (X11), and a log showed the
+      warp's own event landing a pixel off the target, e.g. (3400,1023) for (3401,1023), which would read as a
+      1 px move. A fix based on that (skipping warp events) didn't help, so it's at most part of the story.
 
 - [ ] **Device communication redesign** (planned instead of small fixes). Known issues to cover:
-      - **Knob flicker at an end of its range**: dragging a knob past -INF (or its maximum) and on makes it
-        alternate with one step above. The pointer is warped back after every move event (X11), and the warp's
-        own event can land a pixel off the target (logical vs. device pixels), e.g. (3400,1023) for (3401,1023);
-        an upward one counts as a move up. With a warp per event, these echoes look like real 1 px moves.
-        An idea (untested): warp only after a long drift, and skip events until the pointer shows up at the target.
-      - **Stale confirmation replies**: each change is re-read ~150 ms later; a re-read sent just before a newer
-        change returns the old value and is applied anyway, so the UI briefly shows the old value (the device
-        itself ends right). Replies older than the value's latest change should be dropped.
+  - **Stale confirmation replies**: each change is re-read ~150 ms later; a re-read sent just before a newer
+    change returns the old value and is applied anyway, so the UI briefly shows the old value (the device
+    itself ends right). Replies older than the value's latest change should be dropped.
+  - **Undo/redo** on top of the Device state: a layer between Device and the UI that records changes (and their
+    previous values) as undoable steps. dspMixFx has none (its only undo is a text field's); scenes are the
+    closest thing it offers.
 
-- [x] **Input pairing**: the LINK chain per pair (right-click: fader link), the firmware's rules applied to the
-      app's state (`gui/src/ur44/Pairing.cpp`), a pair's shared controls shown once, Sweet Spot data written to both
-      strips of a stereo strip, no guitar amp on a pair.
-- [ ] **Undo/redo** on top of the Device state: a layer between Device and the UI that records changes (and their
-      previous values) as undoable steps. dspMixFx has none (its only undo is a text field's); scenes are the
-      closest thing it offers.
-- [x] Channel Strip graphs: compressor transfer curve and EQ response, from the editor plug-in's own model
-      (`gui/src/ur44/ChannelStripCurves.cpp`)
-- [x] REV-X decay graph, from the editor plug-in's model (`gui/src/ur44/ReverbShape.cpp`), with its auto zoom
-- [x] REV-X graph: handles on what they set (initial delay, decay, reverb time, the ratios, low frequency, HPF, LPF),
-      the wheel zooms, AUTO follows the reverb time (dspMixFx: handles on rulers, zoom buttons)
-- [x] EQ graph: dragging the band points and the mid band's width (dspMixFx's graph is editable)
 - [ ] Factory scenes: offer the six scenes embedded in the TOOLS Cubase templates (`re/extract_template_scenes.py`)
       as starting points, built in like the Sweet Spot presets.
 - [ ] Scenes panel: reorder scenes (drag and drop); show when the device state no longer matches the last
