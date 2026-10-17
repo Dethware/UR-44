@@ -1,33 +1,46 @@
 # UR-44
 
 Linux (and eventually cross-platform) control of the **Steinberg UR44** USB audio interface's
-internal DSP mixer: the settings dspMixFx manages on Windows/macOS. Those are input sends to MIX 1/2,
-pan, DAW return, master, PHONES 2 source, loopback, REV-X, channel strip, guitar amp models,
-LINE 5/6 level and sample rate.
+internal DSP mixer: the settings dspMixFx manages on Windows/macOS.
 
-On Linux the device runs in its class-compliant USB configuration. Audio works through
-snd-usb-audio, and the mixer is controlled with Yamaha-style SysEx on the **second USB-MIDI port**.
-No driver is needed.
+Both class-compliant and non-class-compliant modes of the device are supported.
 
 ![UR44 Control: MIX 1, with the inputs, the computer's playback, REV-X and the master](screenshots/main-window.png)
 
-## Layout
+## The GUI
 
-| Path | Contents |
+It finds the UR44 by its ALSA card name and owns the MIDI port while it runs, so close it before using
+`tools/ur44.py` (and the other way around).
+
+The effect editors are implemented, including their graph representation. You can drag the EQ's points and
+the REV-X graph's handles to set the parameters.
+
+| Sweet Spot Morphing Channel Strip | REV-X |
 |---|---|
-| `tools/ur44.py` | CLI/library: `version`, `get`, `set`, `dump`, `mix 1\|2`, `phones2`, `monitor` |
-| `tools/ur44_params.py`, `tools/ur44_labels.json` | Parameter table and display labels (generated from memapi) |
-| `tools/ur44_sweet_spot.py` | The 34 factory Sweet Spot Data presets (Yamaha's, generated from the TOOLS .ssd files) |
-| `gui/` | **UR44 Control**, the Qt 6 mixer application (C++17, CMake). See [gui/README](gui/README.md) for details |
-| `docs/PROTOCOL.md` | The protocol as currently understood, with confirmed vs static-only marked |
-| `docs/REVERSE_ENGINEERING.md` | Vendor binaries, addresses, tooling, tricks |
-| `TODO.md` | Outstanding work and ideas |
-| `docs/data/` | Raw evidence: descriptor dump, live address sweep, a state dump |
-| `screenshots/` | Screenshots of the GUI (also used by the AppStream metadata) |
-| `re/` | Reproducible RE scripts: vendor extraction, generators, Ghidra runner, finders, sweep |
-| `vendor/` | (git-ignored) download cache, unpacked downloads, extracted binaries, decompilations |
+| ![The Channel Strip editor: compressor curve, gain reduction, and the EQ's response](screenshots/channel-strip.png) | ![The REV-X editor: the decay at 100 Hz, 1 kHz and 10 kHz, the reverb time per frequency, and the filters](screenshots/rev-x.png) |
 
-## Quick start
+### Building
+It needs Qt 6, CMake 3.16+, the ALSA development files and Python 3 (for the build-time generators).
+
+```bash
+cmake -B build
+cmake --build build
+ctest --test-dir build
+build/gui/src/application/ur44-control
+```
+
+### Installation
+Installing (e.g. for a distribution package) uses the standard CMake and GNU directory variables:
+
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=OFF
+cmake --build build
+DESTDIR="$pkgdir" cmake --install build
+```
+
+`BUILD_TESTING=OFF` skips the tests and the Qt Test dependency.
+
+## CLI tools
 
 ```bash
 python3 tools/ur44.py version          # ['BOOT', 'V2.12', 'MAIN', 'V2.12']
@@ -40,40 +53,16 @@ python3 tools/ur44.py monitor          # watch unsolicited changes (e.g. +48V sw
 The control port is found automatically: `hw:N,0,1` in Class Compliant mode (USB id 0499:1704), `hw:N,1,0` with
 the [CC MODE] switch off (0499:150e). Override it with `--port`.
 
-## The GUI
+## Layout
 
-Needs Qt 6, CMake 3.16+, the ALSA development files and Python 3 (for the build-time generators).
-
-```bash
-cmake -B build
-cmake --build build
-ctest --test-dir build
-build/gui/src/application/ur44-control
-```
-
-It finds the UR44 by its ALSA card name and owns the MIDI port while it runs, so close it before using
-`tools/ur44.py` (and the other way around).
-
-The effect editors draw what dspMixFx's do, from the same models of the effects. You can drag the EQ's points and
-the REV-X graph's handles to set the parameters.
-
-| Sweet Spot Morphing Channel Strip | REV-X |
+| Path | Contents |
 |---|---|
-| ![The Channel Strip editor: compressor curve, gain reduction, and the EQ's response](screenshots/channel-strip.png) | ![The REV-X editor: the decay at 100 Hz, 1 kHz and 10 kHz, the reverb time per frequency, and the filters](screenshots/rev-x.png) |
+| `tools/` | CLI for interaction with the device. Main is `ur44.py`: `version`, `get`, `set`, `dump`, `mix 1\|2`, `phones2`, `monitor` |
+| `gui/` | **UR44 Control**, the Qt 6 mixer application (C++17, CMake). See [gui/README.md](gui/README.md) for details |
+| `docs/` | Documentation about the protocol and reverse engineering notes |
+| `re/` | Reproducible RE scripts: vendor extraction, generators, Ghidra runner, finders, sweep |
+| `vendor/` | (git-ignored) download cache, unpacked downloads, extracted binaries, decompilations |
 
-Installing (e.g. for a distribution package) uses the standard CMake and GNU directory variables:
-
-```bash
-cmake -B build -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_TESTING=OFF
-cmake --build build
-DESTDIR="$pkgdir" cmake --install build
-```
-
-That installs `ur44-control`, a desktop entry, an icon and AppStream metadata (all named after the application ID
-`org.dethware.ur44control`), and `LICENSE`, `NOTICE` and this README into the doc directory. `BUILD_TESTING=OFF`
-skips the tests and the Qt Test dependency. The version is in the file `VERSION`, its release date (for the AppStream
-metadata) in `RELEASE_DATE`. The UCM profile in `linux/ucm2/` isn't installed: it belongs to
-alsa-ucm-conf.
 
 ## Rebuilding the generated files
 
