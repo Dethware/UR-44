@@ -5,6 +5,7 @@
 #include <algorithm>
 
 #include "BulkDump.h"
+#include "Pairing.h"
 #include "Parameters.h"
 #include "Scene.h"
 #include "Transport.h"
@@ -386,11 +387,29 @@ bool Device::setParameter(uint16_t id, uint16_t index, int32_t v)
         return false;
     }
     v = p->clamp(v);
+    // what the firmware changes by itself for a paired input or a stereo strip (it reports none of it)
+    const QList<Pairing::Change> followUps = Pairing::followUps(
+        [this](uint16_t i, uint16_t n) { return value(i, n); }, id, index, v);
     send(Protocol::setParameter(id, index, uint32_t(v)));
     m_setAt.insert(key(id, index), ++m_sequence);
     storeValue(*p, index, v, true);
     m_unconfirmed.insert(key(id, index));
+    for (const Pairing::Change& c : followUps)
+    {
+        if (const Parameter* f = Parameters::instance().byId(c.id))
+        {
+            m_setAt.insert(key(c.id, c.index), ++m_sequence);
+            storeValue(*f, c.index, c.value, true);
+            // read back like our own changes: if the firmware didn't do the same, the device's value wins
+            m_unconfirmed.insert(key(c.id, c.index));
+        }
+    }
     m_confirmTimer.start();
+    if (Pairing::needsResync(id))
+    {
+        // pairing moves the channel strips around and takes the guitar amp off
+        resync();
+    }
     return true;
 }
 
@@ -416,6 +435,11 @@ bool Device::setParameterAllInstances(const QString& name, int32_t v)
         m_unconfirmed.insert(key(p->id, index));
     }
     m_confirmTimer.start();
+    // every instance has the same value, so a pair stays in step by itself; pairing still rearranges the strips
+    if (Pairing::needsResync(p->id))
+    {
+        resync();
+    }
     return true;
 }
 

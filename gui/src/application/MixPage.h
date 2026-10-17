@@ -17,6 +17,10 @@ class Device;
  * like dspMixFx: one column per input, the DAW return and the master (with REV-X), and the PHONES selection.
  * Controls of the same kind share a row.
  *
+ * Paired inputs (1/2, 3/4, 5/6: the chain between their captions) show their shared controls once, across both columns: HPF, the effect, the
+ * REV-X send, mute/solo, and the fader while the fader link is on (the lock between the names). Phase, the meters and
+ * the pans stay per channel.
+ *
  * The device meters the DAW and master of one mix at a time (PatchDawMeter / PatchMasterMeter); this page shows
  * them only while they point at its mix. MainWindow points them at the visible mix.
  */
@@ -43,6 +47,10 @@ protected:
 
 private:
     void addInputColumn(class QGridLayout* grid, int column, uint16_t ch);
+    /// The pair's LINK button between the connector captions, its fader link between the names, and +48V
+    void addPairHeader(class QGridLayout* grid, uint16_t leftChannel);
+    /// Lays out a pair's columns as one (paired) or two
+    void updatePair(uint16_t leftChannel);
     void addDawColumn(class QGridLayout* grid, int column);
     void addMasterColumn(class QGridLayout* grid, int column);
     void updateSolo();
@@ -56,6 +64,19 @@ private:
     LevelMeter* m_masterMeter = nullptr;
 
     class QGridLayout* m_grid = nullptr;
+    /// Per input: the controls a pair shares (the left channel's span both columns, the right channel's hide)
+    struct Shared
+    {
+        QWidget* widget;
+        int row;
+        Qt::Alignment alignment;
+        bool fader; // shared only while the fader link is on
+    };
+    QList<Shared> m_shared[6];
+    /// Per input: per-channel parts of a shared row that hide on the right channel (HPF)
+    QList<QWidget*> m_hiddenWhenRight[6];
+    /// Per pair (by its left channel): the fader link button
+    QWidget* m_faderLinks[6] = {};
     QList<int> m_stripColumns;
 
     bool m_soloActive = false;

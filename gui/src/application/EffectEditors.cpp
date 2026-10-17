@@ -134,7 +134,22 @@ void openReverb(Device* device, QWidget* parent)
 ChannelStripEditor::ChannelStripEditor(Device* device, uint16_t channel, uint16_t strip, QWidget* parent)
     : QDialog(parent), m_device(device), m_channel(channel), m_strip(strip)
 {
-    setWindowTitle(tr("Channel Strip %1 (IN %2)").arg(strip + 1).arg(channel + 1));
+    // a paired input's strip is a stereo strip: two strips for two inputs
+    auto updateTitle = [this, device, channel, strip]() {
+        if (device->value("FxStereoLinkOnf", strip).value_or(0) && device->value("ChPairOnf", channel).value_or(0))
+        {
+            const int left = channel & ~1;
+            const int first = strip & ~1;
+            setWindowTitle(
+                tr("Channel Strip %1/%2 (IN %3/%4)").arg(first + 1).arg(first + 2).arg(left + 1).arg(left + 2));
+        }
+        else
+        {
+            setWindowTitle(tr("Channel Strip %1 (IN %2)").arg(strip + 1).arg(channel + 1));
+        }
+    };
+    Bindings::follow(this, device, "FxStereoLinkOnf", strip, [updateTitle](int32_t) { updateTitle(); });
+    Bindings::follow(this, device, "ChPairOnf", channel, [updateTitle](int32_t) { updateTitle(); });
     auto* layout = new QVBoxLayout(this);
 
     // Morph, Sweet Spot Data, total gain, output meter

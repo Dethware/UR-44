@@ -5,9 +5,11 @@
 #include <QGridLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QIcon>
 #include <QLabel>
 #include <QMenu>
 #include <QPainter>
+#include <QPainterPath>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -18,6 +20,7 @@
 #include "Bindings.h"
 #include "Device.h"
 #include "EffectEditors.h"
+#include "Effects.h"
 #include "Fader.h"
 #include "Knob.h"
 #include "LevelMeter.h"
@@ -76,6 +79,51 @@ bool allChannelsModifier()
 
 /// A text toggle (INS.FX, Ch.Strip, SEND) in the same style, but wider
 
+
+/// A chain link, for the pairs' LINK buttons: two interlocked rounded links
+QIcon chainIcon()
+{
+    QPixmap pixmap(QSize(18, 12) * 2);
+    pixmap.setDevicePixelRatio(2);
+    pixmap.fill(Qt::transparent);
+    QPainter p(&pixmap);
+    p.setRenderHint(QPainter::Antialiasing);
+    p.setPen(QPen(QColor(215, 215, 215), 1.6));
+    p.drawRoundedRect(QRectF(1.5, 3, 9, 6), 3, 3);
+    p.drawRoundedRect(QRectF(7.5, 3, 9, 6), 3, 3);
+    return QIcon(pixmap);
+}
+
+/// A padlock, closed or open, for the pairs' fader link buttons
+QIcon lockIcon()
+{
+    auto draw = [](bool closed) {
+        QPixmap pixmap(QSize(12, 14) * 2);
+        pixmap.setDevicePixelRatio(2);
+        pixmap.fill(Qt::transparent);
+        QPainter p(&pixmap);
+        p.setRenderHint(QPainter::Antialiasing);
+        const QColor color(215, 215, 215);
+        p.setPen(QPen(color, 1.5));
+        // the shackle: down into the body when closed, lifted and to the side when open
+        // (the lifted one still clear of the top: the arc's top is at 1 then, the pen's half width above it)
+        QPainterPath shackle;
+        const double lift = closed ? 0.0 : 2.0;
+        shackle.moveTo(3.5, 8 - lift);
+        shackle.lineTo(3.5, 6 - lift);
+        shackle.arcTo(QRectF(3.5, 3 - lift, 5, 6), 180, -180);
+        shackle.lineTo(8.5, closed ? 8 : 6.5 - lift);
+        p.drawPath(shackle);
+        p.setPen(Qt::NoPen);
+        p.setBrush(color);
+        p.drawRoundedRect(QRectF(1.5, 7.5, 9, 6), 1.5, 1.5);
+        return pixmap;
+    };
+    QIcon icon;
+    icon.addPixmap(draw(false), QIcon::Normal, QIcon::Off);
+    icon.addPixmap(draw(true), QIcon::Normal, QIcon::On);
+    return icon;
+}
 
 void addCentered(QGridLayout* grid, QWidget* w, int row, int column, int columnSpan = 1)
 {
@@ -139,12 +187,21 @@ MixPage::MixPage(int bus, Device* device, QWidget* parent) : QWidget(parent), m_
     {
         addInputColumn(grid, ch, ch);
     }
+    m_grid = grid;
+    for (uint16_t l : {0, 2, 4})
+    {
+        addPairHeader(grid, l);
+        for (const char* name : {"ChPairOnf", "ChFaderLinkOnf"})
+        {
+            Bindings::follow(this, device, name, l, [this, l](int32_t) { updatePair(l); });
+        }
+        updatePair(l);
+    }
     // columns 6 and 8 are gaps between the input, DAW and master groups
     grid->setColumnMinimumWidth(6, 4);
     addDawColumn(grid, 7);
     grid->setColumnMinimumWidth(8, 4);
     addMasterColumn(grid, 9);
-    m_grid = grid;
     m_stripColumns = {0, 1, 2, 3, 4, 5, 7, 9};
     grid->setRowStretch(FaderRow, 1);
     for (int gap : {MeterGap, FxGap, SendGap, PanGap, PhantomGap})
@@ -214,6 +271,7 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
             menu.exec(hpf->mapToGlobal(pos));
         });
         switches->addWidget(hpf);
+        m_hiddenWhenRight[ch].append(hpf);
     }
     switches->addStretch();
     meterLayout->addLayout(switches);
@@ -250,16 +308,23 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
             return FxChoice{Protocol::FxType::GuitarAmp, Protocol::InsertPoint::Post};
         return std::nullopt;
     };
+    // a pair takes the channel strip (as a stereo strip); the guitar amp is mono, and pairing takes it off
+    auto paired = [device, ch]() { return device->value("ChPairOnf", ch).value_or(0) != 0; };
     auto refresh = [=]() {
         bool ready = device->isReady();
         auto now = assigned();
         FxChoice shown = now.value_or(*preferred);
+        if (paired() && !now)
+        {
+            shown.type = Protocol::FxType::ChannelStrip;
+        }
         bool ins = shown.point == Protocol::InsertPoint::Pre;
         location->setText(ins ? "INS.FX" : "MON.FX");
         location->setToolTip(ins ? tr("INS.FX: the effect applies to the monitor and the recorded signal")
                                  : tr("MON.FX: the effect applies to the monitor signal only"));
         type->setText(shown.type == Protocol::FxType::ChannelStrip ? "Ch.Strip" : "Guitar Amp");
-        type->setToolTip(tr("Effect type: Channel Strip or Guitar Amp Classics (click to switch)"));
+        type->setToolTip(paired() ? tr("Effect type: a pair takes the Channel Strip, as a stereo strip")
+                                  : tr("Effect type: Channel Strip or Guitar Amp Classics (click to switch)"));
         QSignalBlocker blocker(power);
         power->setChecked(now.has_value());
         power->setToolTip(now ? tr("Effect on (click to remove it)") : tr("Effect off (click to insert it)"));
@@ -267,6 +332,7 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
         {
             w->setEnabled(ready);
         }
+        type->setEnabled(ready && !paired());
         edit->setEnabled(ready && now.has_value());
     };
     auto apply = [=](FxChoice choice, bool on) {
@@ -314,10 +380,16 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
         }
     });
     connect(power, &QToolButton::clicked, this, [=](bool on) {
-        apply(*preferred, on);
+        FxChoice choice = *preferred;
+        if (paired())
+        {
+            choice.type = Protocol::FxType::ChannelStrip;
+        }
+        apply(choice, on);
         refresh();
     });
-    for (const char* name : {"ChFxInsPrePatch", "ChFxInsPostPatch", "ChGtrFxInsPrePatch", "ChGtrFxInsPostPatch"})
+    for (const char* name :
+         {"ChFxInsPrePatch", "ChFxInsPostPatch", "ChGtrFxInsPrePatch", "ChGtrFxInsPostPatch", "ChPairOnf"})
     {
         Bindings::follow(power, device, name, ch, [refresh](int32_t) { refresh(); });
     }
@@ -325,6 +397,7 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
     refresh();
 
     addCentered(grid, location, FxLocationRow, column);
+    m_shared[ch].append({location, FxLocationRow, Qt::AlignHCenter, false});
     auto* fxSwitches = new QWidget(this);
     auto* fxSwitchLayout = new QHBoxLayout(fxSwitches);
     fxSwitchLayout->setContentsMargins(0, 0, 0, 0);
@@ -333,6 +406,8 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
     fxSwitchLayout->addWidget(edit);
     addCentered(grid, fxSwitches, FxSwitchRow, column);
     addCentered(grid, type, FxTypeRow, column);
+    m_shared[ch].append({fxSwitches, FxSwitchRow, Qt::AlignHCenter, false});
+    m_shared[ch].append({type, FxTypeRow, Qt::AlignHCenter, false});
 
     // REV-X send (one per channel, shared by both mixes)
     auto* send = new Knob(REVX_COLOR, this);
@@ -342,6 +417,8 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
                        tr("Adjusts the signal level which is sent to REV-X.\n"
                           "One send per input: it feeds REV-X from the mix selected with SEND."));
     addKnob(grid, send, sendLabel, SendRow, column);
+    m_shared[ch].append({send, SendRow, Qt::AlignHCenter | Qt::AlignBottom, false});
+    m_shared[ch].append({sendLabel, SendLabelRow, Qt::AlignHCenter | Qt::AlignTop, false});
 
     auto* pan = new Knob(PAN_COLOR, this);
     auto* panLabel = caption(QString(), this);
@@ -364,18 +441,7 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
     msLayout->addWidget(mute);
     msLayout->addWidget(solo);
     addCentered(grid, muteSolo, MuteSoloRow, column);
-
-    if (ch < 4)
-    {
-        // +48V is switched on the front panel, per input pair
-        auto* phantom = caption(QString(), this);
-        phantom->setToolTip(tr("Phantom power, switched on the front panel"));
-        Bindings::follow(phantom, device, "HaP48VOnf", uint16_t(ch / 2), [phantom](int32_t v) {
-            phantom->setText(v ? QString::fromUtf8("<span style='color:#ff4030'>●</span> +48V")
-                               : QString::fromUtf8("<span style='color:#606060'>●</span> +48V"));
-        });
-        addCentered(grid, phantom, PhantomRow, column);
-    }
+    m_shared[ch].append({muteSolo, MuteSoloRow, Qt::AlignHCenter, false});
 
     auto* level = fader(this);
     auto* levelLabel = caption(QString(), this);
@@ -399,7 +465,72 @@ void MixPage::addInputColumn(QGridLayout* grid, int column, uint16_t ch)
                            .arg(m_bus));
     addCentered(grid, level, FaderRow, column);
     addCentered(grid, levelLabel, LevelLabelRow, column);
+    m_shared[ch].append({level, FaderRow, Qt::AlignHCenter, true});
+    m_shared[ch].append({levelLabel, LevelLabelRow, Qt::AlignHCenter, true});
     addCentered(grid, caption(tr("IN %1").arg(ch + 1), this), NameRow, column);
+}
+
+void MixPage::addPairHeader(QGridLayout* grid, uint16_t l)
+{
+    // the pair's link: a small chain between the two connector captions
+    auto* link = squareButton(QString(), QColor(80, 160, 255), QString(), this);
+    link->setFixedSize(24, 18);
+    link->setIcon(chainIcon());
+    link->setIconSize(QSize(18, 12));
+    link->setToolTip(tr("Link IN %1 and IN %2 as a stereo pair: they share their settings, except phase and pan")
+                         .arg(l + 1)
+                         .arg(l + 2));
+    Bindings::toggle(link, m_device, "ChPairOnf", l);
+    grid->addWidget(link, InputTypeRow, l, 1, 2, Qt::AlignHCenter);
+
+    // the fader link, between the channel names while the pair is linked: one fader for both, or one each
+    auto* faderLink = squareButton(QString(), QColor(80, 160, 255), QString(), this);
+    faderLink->setFixedSize(22, 20);
+    faderLink->setIcon(lockIcon());
+    faderLink->setIconSize(QSize(12, 14));
+    faderLink->setToolTip(tr("Fader link: IN %1 and IN %2 share one fader per mix (off: a fader each)")
+                              .arg(l + 1)
+                              .arg(l + 2));
+    Bindings::toggle(faderLink, m_device, "ChFaderLinkOnf", l);
+    grid->addWidget(faderLink, NameRow, l, 1, 2, Qt::AlignHCenter);
+    m_faderLinks[l] = faderLink;
+
+    // +48V is switched on the front panel, per input pair (1/2, 3/4): between the two channels, as a read-only
+    // indicator (a disabled button still shows its state, like PHONES 1)
+    if (l < 4)
+    {
+        auto* phantom = textButton("+48V", QColor(255, 64, 48), QString(), this);
+        phantom->setFixedWidth(48);
+        phantom->setEnabled(false);
+        // brighter than a read-only button's usual darkened colour: phantom power on is worth noticing
+        phantom->setStyleSheet(phantom->styleSheet() +
+                               "QToolButton:checked:disabled { background: #e8402c; color: #1a1a1a; }");
+        phantom->setToolTip(tr("Phantom power for IN %1 and IN %2, switched on the front panel").arg(l + 1).arg(l + 2));
+        Bindings::follow(phantom, m_device, "HaP48VOnf", uint16_t(l / 2),
+                         [phantom](int32_t v) { phantom->setChecked(v != 0); });
+        grid->addWidget(phantom, PhantomRow, l, 1, 2, Qt::AlignHCenter);
+    }
+}
+
+void MixPage::updatePair(uint16_t l)
+{
+    const bool paired = m_device->value("ChPairOnf", l).value_or(0) != 0;
+    const bool fadersLinked = m_device->value("ChFaderLinkOnf", l).value_or(1) != 0;
+    const uint16_t r = uint16_t(l + 1);
+    for (int i = 0; i < m_shared[l].size(); ++i)
+    {
+        const Shared& left = m_shared[l].at(i);
+        const bool shared = paired && (!left.fader || fadersLinked);
+        m_grid->removeWidget(left.widget);
+        m_grid->addWidget(left.widget, left.row, l, 1, shared ? 2 : 1, left.alignment);
+        m_shared[r].at(i).widget->setVisible(!shared);
+    }
+    for (QWidget* w : std::as_const(m_hiddenWhenRight[r]))
+    {
+        w->setVisible(!paired);
+    }
+    m_faderLinks[l]->setVisible(paired);
+    update(); // the column backgrounds (paintEvent) follow the layout
 }
 
 void MixPage::addDawColumn(QGridLayout* grid, int column)
@@ -522,7 +653,8 @@ void MixPage::addMasterColumn(QGridLayout* grid, int column)
     rl->addWidget(edit, 1, 1, Qt::AlignHCenter);
 
     auto* type = new QComboBox(revx);
-    Bindings::combo(type, device, "FxRevType", 0);
+    // choosing a type resets the reverb parameters to the type's defaults, like dspMixFx (and the REV-X editor)
+    Bindings::combo(type, device, "FxRevType", 0, [device](int32_t v) { Effects::setReverbType(*device, v); });
     rl->addWidget(type, 2, 0, 1, 2);
 
     auto* time = new Knob(QColor(60, 90, 200), revx);
@@ -601,12 +733,22 @@ void MixPage::paintEvent(QPaintEvent* event)
 
     QPainter p(this);
     p.setRenderHint(QPainter::Antialiasing);
+    // a pair of inputs is one strip
+    auto paired = [this](int column) {
+        return column < 6 && m_device->value("ChPairOnf", uint16_t(column)).value_or(0) != 0;
+    };
     for (int column : std::as_const(m_stripColumns))
     {
+        if (column < 6 && column % 2 == 1 && paired(column - 1))
+        {
+            continue; // drawn with the left one
+        }
+        const int last = column % 2 == 0 && paired(column) ? column + 1 : column;
         QRect strip;
         for (int row = InputTypeRow; row <= NameRow; ++row)
         {
             strip |= m_grid->cellRect(row, column);
+            strip |= m_grid->cellRect(row, last);
         }
         strip.adjust(-5, -4, 5, 4);
         p.setPen(Qt::NoPen);

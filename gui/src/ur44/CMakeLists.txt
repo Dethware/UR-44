@@ -32,6 +32,9 @@ qt_add_library(ur44 STATIC
     Effects.h
     Effects.cpp
 
+    Pairing.h
+    Pairing.cpp
+
     SweetSpot.h
     SweetSpot.cpp
 

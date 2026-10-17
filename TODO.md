@@ -65,17 +65,9 @@ outside the repository, in the workspace's `../TODO.md`.
         change returns the old value and is applied anyway, so the UI briefly shows the old value (the device
         itself ends right). Replies older than the value's latest change should be dropped.
 
-- [ ] **Input pairing** (docs/PROTOCOL.md "Input pairing"): a link button per input pair (1/2, 3/4, 5/6) and the
-      fader link. The firmware does the linking but reports nothing, so the app has to apply the same rules to its
-      own state (docs/PROTOCOL.md "Input pairing": the copy when pairing, the linked parameters, the fader link),
-      and resync the strips after pairing/unpairing (it moves and swaps them). Don't offer the guitar amp on a pair
-      (the firmware would accept it on one channel; MemAPI doesn't). Loading Sweet Spot data on a stereo strip: load it into both
-      strips (the firmware doesn't copy the morph tables). A layout hint, from a newer device's dspMixFx (its functions may differ): a pair is
-      one double-width strip, with the link button (a chain) at the top between the two channels (shown on
-      unpaired pairs too); one HPF, one set of inserts, one send knob, one mute/solo and one fader with a stereo
-      meter, but a phase switch and a pan knob per channel (to combine the two channels correctly, e.g. a stereo
-      pair of mics), and both channel names under it. This matches MemAPI: HPF is in the pair's shared items,
-      phase and the pans are the per-channel ones.
+- [x] **Input pairing**: the LINK chain per pair (right-click: fader link), the firmware's rules applied to the
+      app's state (`gui/src/ur44/Pairing.cpp`), a pair's shared controls shown once, Sweet Spot data written to both
+      strips of a stereo strip, no guitar amp on a pair.
 - [ ] **Undo/redo** on top of the Device state: a layer between Device and the UI that records changes (and their
       previous values) as undoable steps. dspMixFx has none (its only undo is a text field's); scenes are the
       closest thing it offers.

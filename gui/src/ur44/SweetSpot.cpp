@@ -8,6 +8,7 @@
 #include <algorithm>
 
 #include "Device.h"
+#include "Pairing.h"
 #include "Parameters.h"
 
 namespace UR44
@@ -147,6 +148,14 @@ bool loadSweetSpot(Device& device, uint16_t strip, const SweetSpotPreset& preset
         }
     }
     if (!device.writeMorphTable(strip, preset.id, preset.name.toLatin1(), points))
+    {
+        return false;
+    }
+    // A stereo strip (a paired input's) is two strips: the firmware mirrors their settings, but not the Sweet Spot
+    // data, so the other one gets the table too (it keeps the preset when the pair is split)
+    const auto state = [&device](uint16_t id, uint16_t index) { return device.value(id, index); };
+    if (Pairing::isStereoStrip(state, strip) &&
+        !device.writeMorphTable(uint16_t(strip ^ 1), preset.id, preset.name.toLatin1(), points))
     {
         return false;
     }

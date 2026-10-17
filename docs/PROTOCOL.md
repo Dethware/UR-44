@@ -294,7 +294,7 @@ the state with a dump (`Device::resync()`), not with parameter reads.
 
 ## Input pairing
 
-**Not implemented** in the GUI yet.
+The GUI applies the firmware's rules below to its own state (`gui/src/ur44/Pairing.cpp`, used by `Device`).
 
 ### On the device (confirmed, 2026-10-17, CC mode off; scratch scripts, inputs 3/4)
 

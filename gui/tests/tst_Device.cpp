@@ -4,6 +4,7 @@
 #include "Device.h"
 #include "Effects.h"
 #include "SweetSpot.h"
+#include "Pairing.h"
 #include "Parameters.h"
 #include "Protocol.h"
 #include "Scene.h"
@@ -200,6 +201,18 @@ private:
             // a set (same layout as a reply); index 0xffff sets every instance, like the real device
             const Parameter* p = Parameters::instance().byId(pv->id);
             const bool all = pv->index == Protocol::ALL_INSTANCES;
+            // the firmware links paired inputs and stereo strips by itself
+            if (!all)
+            {
+                auto state = [this](uint16_t id, uint16_t index) -> std::optional<int32_t> {
+                    auto it = registers.constFind(key(id, index));
+                    return it == registers.constEnd() ? std::nullopt : std::optional<int32_t>(int32_t(*it));
+                };
+                for (const Pairing::Change& c : Pairing::followUps(state, pv->id, pv->index, int32_t(pv->value)))
+                {
+                    registers[key(c.id, c.index)] = uint32_t(c.value);
+                }
+            }
             for (int i = all ? 0 : pv->index; i < (all ? (p ? p->instances : 0) : pv->index + 1); ++i)
             {
                 uint32_t k = key(pv->id, i);
@@ -440,6 +453,38 @@ private slots:
         QCOMPARE(m_device->value(onf.id, 0), std::optional<int32_t>(1));
         QTRY_COMPARE(m_device->value(onf.id, 0), std::optional<int32_t>(0));
         QCOMPARE(changes.size(), 2);
+    }
+
+    void setParameter_pairedInputFollows()
+    {
+        makeDevice();
+        connectReady();
+        const Parameter& pair = P("ChPairOnf");
+        const Parameter& hpf = P("ChHpfOnf");
+        const Parameter& level = P("ChSendMixBus2Level");
+        const Parameter& pan = P("ChSendMixBus2Pan");
+        m_device->setParameter(hpf.id, 2, 1); // input 3 differs from input 4
+        m_device->setParameter(hpf.id, 3, 0);
+        const int dumps = m_fake->count(Protocol::dumpRequest(Protocol::DumpType::All));
+
+        // pairing sets both channels, copies the left one's settings, and asks for the strips' new places
+        QVERIFY(m_device->setParameter(pair.id, 2, 1));
+        QCOMPARE(m_device->value(pair.id, 3), std::optional<int32_t>(1));
+        QCOMPARE(m_device->value(hpf.id, 3), std::optional<int32_t>(1));
+        QTRY_COMPARE(m_fake->count(Protocol::dumpRequest(Protocol::DumpType::All)), dumps + 1);
+
+        // a linked change reaches the partner (only the set is sent: the firmware does the rest) and is read back
+        const int written = m_fake->written.size();
+        QVERIFY(m_device->setParameter(level.id, 3, 50));
+        QCOMPARE(m_device->value(level.id, 2), std::optional<int32_t>(50));
+        QCOMPARE(m_fake->written.size(), written + 1);
+        QTRY_COMPARE(m_fake->count(Protocol::getParameter(level.id, 2)), 1);
+        // pans stay per channel
+        const auto rightPan = m_device->value(pan.id, 3);
+        QVERIFY(m_device->setParameter(pan.id, 2, -16));
+        QCOMPARE(m_device->value(pan.id, 3), rightPan);
+        QTest::qWait(300);
+        QCOMPARE(m_device->value(level.id, 2), std::optional<int32_t>(50));
     }
 
     void setParameter_refusedWhenNotReady()
