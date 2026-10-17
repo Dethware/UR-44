@@ -7,7 +7,6 @@
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QPointer>
-#include <QProgressBar>
 #include <QStandardItemModel>
 #include <QStackedWidget>
 #include <QToolButton>
@@ -21,6 +20,7 @@
 #include "LevelMeter.h"
 #include "Protocol.h"
 #include "ReverbTime.h"
+#include "StripGraphs.h"
 #include "SweetSpot.h"
 #include "Widgets.h"
 
@@ -214,12 +214,15 @@ ChannelStripEditor::ChannelStripEditor(Device* device, uint16_t channel, uint16_
     auto* comp = new QGroupBox(tr("COMPRESSOR"), this);
     auto* cl = new QGridLayout(comp);
     cl->addWidget(onButton(device, "FxCompBypass", strip, STRIP_COLOR, comp), 0, 0, Qt::AlignLeft);
-    m_gainReduction = new QProgressBar(comp);
-    m_gainReduction->setRange(0, 200); // tenths of a dB
-    m_gainReduction->setFormat(tr("GR %v"));
-    m_gainReduction->setTextVisible(true);
-    m_gainReduction->setFixedWidth(160);
-    cl->addWidget(m_gainReduction, 0, 1, 1, 3, Qt::AlignLeft);
+    // gain reduction, next to the knobs: 0 dB at the top, like the level meters' 0 dBFS
+    m_gainReduction = new LevelMeter(1, comp, LevelMeter::GainReduction);
+    m_gainReduction->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred); // as tall as the knob rows
+    m_gainReduction->setToolTip(tr("Compressor gain reduction (0 .. 20 dB)"));
+    m_gainReductionLabel = caption(tr("GR"), comp);
+    m_gainReductionLabel->setMinimumWidth(m_gainReductionLabel->fontMetrics().horizontalAdvance(tr("GR %1 dB").arg("20.0")));
+    cl->addWidget(new CompressorGraph(device, strip, comp), 0, 5, 3, 1);
+    cl->addWidget(m_gainReductionLabel, 0, 6, Qt::AlignHCenter | Qt::AlignBottom);
+    cl->addWidget(m_gainReduction, 1, 6, 2, 1, Qt::AlignHCenter);
     int col = 0;
     struct Control
     {
@@ -297,7 +300,10 @@ ChannelStripEditor::ChannelStripEditor(Device* device, uint16_t channel, uint16_
                                   device, band.g, strip, STRIP_COLOR, box));
         el->addWidget(box, 1, col++);
     }
-    layout->addWidget(eq);
+    el->addWidget(new EqGraph(device, strip, eq), 2, 0, 1, col);
+    el->setRowStretch(2, 1);
+    // the EQ graph takes any extra height, the knobs stay together
+    layout->addWidget(eq, 1);
 
     // Bound to this strip: close if the channel's insert changes to another (or none)
     for (const char* name : {"ChFxInsPrePatch", "ChFxInsPostPatch"})
@@ -322,8 +328,8 @@ void ChannelStripEditor::showMeters(const QList<uint32_t>& frame)
     int out = (Meters::StripOutput1 + m_strip) * 2;
     m_output->setLevels({Meters::levelDb(frame.at(out))}, {Meters::levelDb(frame.at(out + 1))});
     double gr = Meters::gainReductionDb(frame.at((Meters::GainReduction1 + m_strip) * 2));
-    m_gainReduction->setValue(int(gr * 10));
-    m_gainReduction->setFormat(tr("GR %1 dB").arg(gr, 0, 'f', 1));
+    m_gainReduction->setGainReduction({gr});
+    m_gainReductionLabel->setText(tr("GR %1 dB").arg(gr, 0, 'f', 1));
 }
 
 // --- Guitar Amp Classics -------------------------------------------------------------------------------------------

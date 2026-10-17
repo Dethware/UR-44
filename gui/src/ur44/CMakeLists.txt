@@ -15,6 +15,9 @@ qt_add_library(ur44 STATIC
     ReverbTime.h
     ReverbTime.cpp
 
+    ChannelStripCurves.h
+    ChannelStripCurves.cpp
+
     Transport.h
 
     AlsaTransport.h

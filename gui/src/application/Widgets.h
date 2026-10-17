@@ -6,6 +6,8 @@
 #include <cstdint>
 
 class QLabel;
+class QPainter;
+class QRectF;
 class QToolButton;
 class QWidget;
 class Knob;
@@ -26,6 +28,26 @@ const QColor PAN_COLOR(70, 170, 70);
 const QColor RETURN_COLOR(230, 130, 40);
 const QColor STRIP_COLOR(230, 160, 50);
 const QColor AMP_COLOR(200, 70, 60);
+
+// The meters' and graphs' display colours: always dark, whatever the theme, for the contrast (like dspMixFx's)
+inline QColor displayBackground(bool enabled)
+{
+    return enabled ? QColor(12, 13, 15) : QColor(24, 26, 28);
+}
+inline QColor displayGrid(bool major)
+{
+    return QColor(255, 255, 255, major ? 60 : 24);
+}
+inline QColor displayLabel()
+{
+    return QColor(255, 255, 255, 140);
+}
+
+/// A sunken display panel with rounded corners, filling `rect`: paints the background and clips the painter to it.
+/// Returns the area to draw in. Finish with endDisplayPanel().
+QRectF beginDisplayPanel(QPainter& p, const QRectF& rect, bool enabled);
+/// The panel's sunken edge, over what was drawn; resets the clip
+void endDisplayPanel(QPainter& p, const QRectF& rect);
 
 /// A small square toggle, lit in `color` when checked
 QToolButton* squareButton(const QString& text, const QColor& color, const QString& tooltip, QWidget* parent);

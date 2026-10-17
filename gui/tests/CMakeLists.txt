@@ -15,6 +15,7 @@ add_qt_test(tst_BulkDump ur44)
 add_qt_test(tst_Parameters ur44)
 add_qt_test(tst_Device ur44)
 add_qt_test(tst_Scene ur44)
+add_qt_test(tst_ChannelStripCurves ur44)
 
 # application: the settings are tested on their own, the application isn't a library
 add_qt_test(tst_Settings shared)

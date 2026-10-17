@@ -1,6 +1,9 @@
 #include "Widgets.h"
 
 #include <QLabel>
+#include <QLinearGradient>
+#include <QPainter>
+#include <QPainterPath>
 #include <QToolButton>
 #include <QVBoxLayout>
 
@@ -9,6 +12,54 @@
 
 namespace Widgets
 {
+
+namespace
+{
+constexpr double PANEL_RADIUS = 6.0;
+// Inside the edge, and clear of the rounded corners at the ends of the curves
+constexpr double PANEL_PADDING = 3.0;
+
+QPainterPath panelPath(const QRectF& rect)
+{
+    QPainterPath path;
+    path.addRoundedRect(rect.adjusted(0.5, 0.5, -0.5, -0.5), PANEL_RADIUS, PANEL_RADIUS);
+    return path;
+}
+}
+
+QRectF beginDisplayPanel(QPainter& p, const QRectF& rect, bool enabled)
+{
+    QPainterPath path = panelPath(rect);
+    p.save();
+    p.setRenderHint(QPainter::Antialiasing);
+    p.fillPath(path, displayBackground(enabled));
+    p.restore();
+    p.setClipPath(path);
+    return rect.adjusted(PANEL_PADDING, PANEL_PADDING, -PANEL_PADDING, -PANEL_PADDING);
+}
+
+void endDisplayPanel(QPainter& p, const QRectF& rect)
+{
+    QPainterPath path = panelPath(rect);
+    p.save();
+    p.setRenderHint(QPainter::Antialiasing);
+    // an inner shadow under the top edge
+    p.setClipPath(path);
+    QLinearGradient shadow(rect.topLeft(), rect.topLeft() + QPointF(0, 6));
+    shadow.setColorAt(0.0, QColor(0, 0, 0, 110));
+    shadow.setColorAt(1.0, QColor(0, 0, 0, 0));
+    p.fillRect(QRectF(rect.left(), rect.top(), rect.width(), 6), shadow);
+    p.setClipping(false);
+    // the edge: dark at the top, catching the light at the bottom
+    QLinearGradient edge(rect.topLeft(), rect.bottomLeft());
+    edge.setColorAt(0.0, QColor(0, 0, 0, 170));
+    edge.setColorAt(0.5, QColor(0, 0, 0, 90));
+    edge.setColorAt(1.0, QColor(255, 255, 255, 70));
+    p.setPen(QPen(QBrush(edge), 1));
+    p.setBrush(Qt::NoBrush);
+    p.drawPath(path);
+    p.restore();
+}
 
 QToolButton* squareButton(const QString& text, const QColor& color, const QString& tooltip, QWidget* parent)
 {

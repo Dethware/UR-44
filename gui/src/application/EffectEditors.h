@@ -6,7 +6,6 @@
 
 class LevelMeter;
 class QLabel;
-class QProgressBar;
 
 namespace UR44
 {
@@ -46,7 +45,8 @@ private:
     uint16_t m_channel;
     uint16_t m_strip;
     LevelMeter* m_output = nullptr;
-    QProgressBar* m_gainReduction = nullptr;
+    LevelMeter* m_gainReduction = nullptr;
+    QLabel* m_gainReductionLabel = nullptr;
 };
 
 /*

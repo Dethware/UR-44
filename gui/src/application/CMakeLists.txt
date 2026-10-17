@@ -26,6 +26,9 @@ qt_add_executable(ur44-control
     LevelMeter.h
     LevelMeter.cpp
 
+    StripGraphs.h
+    StripGraphs.cpp
+
     MixPage.h
     MixPage.cpp
 
