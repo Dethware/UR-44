@@ -9,11 +9,20 @@ Both class-compliant and non-class-compliant modes of the device are supported.
 
 ## The GUI
 
-It finds the UR44 by its ALSA card name and owns the MIDI port while it runs, so close it before using
-`tools/ur44.py` (and the other way around).
+The main window is partially implemented:
 
-The effect editors are implemented, including their graph representation. You can drag the EQ's points and
-the REV-X graph's handles to set the parameters.
+* The main mix area has all the controls of the original with one exception: pairing the input channels.
+* The right panel allows saving and applying any number of 'Scenes' - the full mixer and effects state.
+  * Import and export of original dspMixFx scene files (.UR44) is also there, but needs testing.
+
+The effect editors are also implemented, including their graph representation:
+
+* REV-X and Channel Strip effects are at parity with the original software
+  * You can drag the EQ's points and the REV-X graph's handles to set the parameters.
+* Guitar effects still need some UI work and verification, but all the controls are there.
+
+It finds the UR44 by its ALSA card name and owns the second MIDI port while it runs, so close it before using
+any other tool (like `tools/ur44.py`) that wants to interact with the device configuration.
 
 | Sweet Spot Morphing Channel Strip | REV-X |
 |---|---|

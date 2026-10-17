@@ -13,12 +13,21 @@ outside the repository, in the workspace's `../TODO.md`.
       (e.g. record through the DAW with the strip on INS vs MON and compare).
 - [ ] **`HaInputGain[2]` = LINE 5/6 reference level**, with 1 = -10 dBV (from memapi's default and the manual's
       stated default). `[0..1]` presumably unused.
+- [ ] **What the device does with `ChPairOnf` by itself** (DSP, meters, the strip's stereo link). The linking in
+      docs/PROTOCOL.md "Input pairing" is all MemAPI's. Test: pair 1/2, read the right channel's values and the
+      meters, unpair, restore.
+- [ ] **The fader link, by experiment**: which faders a pair has and which levels each one controls, with
+      `ChFaderLinkOnf` on and off (MemAPI: with it off, the two channels' MIX 1/2 levels are separate; the newer
+      dspMixFx shows one fader per pair when linked).
 - [ ] **Exported `.UR44` files in dspMixFx** (macOS). Ours leave out the per-scene UI memory elements
       (`MuteStatus`, `FxInsPosStatus`, `ChFxTypeStatus`); dspMixFx's writer treats them as optional, its reader is
       untested with files that lack them.
 
 ## Reverse engineering
 
+- [ ] **Input pairing's strip slots**: how `setChStripPatch` picks and moves strip slots (`copyChStripBlock`) for
+      a stereo strip, in the edge cases (all four strips in use, a strip on the right channel only). Only its
+      main path is read.
 - [ ] **dspMixFx UI memory blobs** in `.UR44` scenes (`MuteStatus` ChSz×OutChSz, `FxInsPosStatus`, `ChFxTypeStatus`)
       and the `IO` / `ChStripPatch` / `ExtFX` scene attributes. Needed for a faithful export and to restore the
       INS/MON and effect type a channel shows while nothing is inserted.
@@ -53,6 +62,15 @@ outside the repository, in the workspace's `../TODO.md`.
         change returns the old value and is applied anyway, so the UI briefly shows the old value (the device
         itself ends right). Replies older than the value's latest change should be dropped.
 
+- [ ] **Input pairing** (docs/PROTOCOL.md "Input pairing"): a link button per input pair (1/2, 3/4, 5/6) and the
+      fader link; mirroring changes to both channels of a pair (except phase, pans, and the MIX levels while the
+      fader link is off); the copy when pairing; the stereo channel strip (two adjacent strips, stereo linked); no
+      guitar amp on a pair. A layout hint, from a newer device's dspMixFx (its functions may differ): a pair is
+      one double-width strip, with the link button (a chain) at the top between the two channels (shown on
+      unpaired pairs too); one HPF, one set of inserts, one send knob, one mute/solo and one fader with a stereo
+      meter, but a phase switch and a pan knob per channel (to combine the two channels correctly, e.g. a stereo
+      pair of mics), and both channel names under it. This matches MemAPI: HPF is in the pair's shared items,
+      phase and the pans are the per-channel ones.
 - [ ] **Undo/redo** on top of the Device state: a layer between Device and the UI that records changes (and their
       previous values) as undoable steps. dspMixFx has none (its only undo is a text field's); scenes are the
       closest thing it offers.

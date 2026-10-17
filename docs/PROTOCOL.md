@@ -292,6 +292,36 @@ parameters has to (implemented in `gui/src/ur44/Effects.cpp`):
 Other parameters answer normally, and the bulk dump has the right value. So after an FX assign/unassign, read
 the state with a dump (`Device::resync()`), not with parameter reads.
 
+## Input pairing (host-side, static)
+
+From macOS MemAPI (`smd_SetPrmRelPair`, `smd_SetPrmRelFaderLink`, `CsmdModel::_GetGroupInfo`, `setChStripPatch`)
+and dspMixFx. **Not implemented** in the GUI yet, and **not checked on the device**: the device may do nothing with
+the flag itself, all the linking below is MemAPI's.
+
+* The pairs are inputs 1/2, 3/4, 5/6 (channels `2k` and `2k+1`). dspMixFx has a "Link Channels" button per pair.
+* **`ChPairOnf[ch]`**: the pair switch, set on both channels of the pair. **`ChFaderLinkOnf[ch]`** (default 1): while
+  paired, whether the two channels' MIX 1/2 levels move together. **`FxStereoLinkOnf[strip]`**: two channel strips
+  working as one stereo strip.
+* MemAPI keeps a 19-byte block per channel, in this order: pair, fader link, phase, HPF on, HPF frequency,
+  `ChFxIns{Pre,Post}Patch`, `ChGtrFxIns{Pre,Post}Patch`, MIX 1/2 solo, MIX 1/2 on, MIX 1/2 level, MIX 1/2 pan,
+  FX Bus on, FX Bus level. (Inferred from which offsets the relations read and keep; consistent with all of them.)
+* **Pairing on**: the left channel's block is copied to the right one, which keeps its own phase, its insert
+  patches, its MIX 1/2 pans, and (with the fader link off) its MIX 1/2 levels. Then these items are sent for both
+  channels (`pairItemTbl`): `ChPairOnf`, `ChHpfOnf`, `ChHpfFreq`, `ChSendMixBus{1,2}SoloOnf`,
+  `ChSendMixBus{1,2}Onf`, `ChSendFxBusOnf`, `ChSendMixBus{1,2}Level`, `ChSendFxBusLevel`.
+  * A channel strip on the left channel is taken off both channels and patched again as a stereo strip: two
+    adjacent strips, stereo linked (MemAPI moves strip blocks around, `copyChStripBlock`, to free two adjacent
+    ones; with four strips, at most two pairs can have one). A stereo-linked strip pair also shows on the next
+    strip output meter (see "Meter frame").
+  * Guitar amp patches are taken off both channels (the amp is mono).
+  * The solo state flag (`SysSoloOnf`) is recomputed.
+* **While paired**, a change to one channel is applied to both (`_GetGroupInfo`), except `ChPairOnf`,
+  `ChFaderLinkOnf`, `ChPhaseOnf` and `ChSendMixBus{1,2}Pan` (`notGrpItemTbl`), and the MIX 1/2 levels while the
+  fader link is off (`faderLinkItemTbl`: `ChSendMixBus{1,2}Level`; the FX Bus level stays linked).
+* **Fader link on** while paired: the left channel's MIX 1/2 levels are copied to the right one and sent.
+* **Pairing off**: both channels keep their settings; a stereo strip is patched again as mono strips, one per
+  channel.
+
 ## REV-X routing
 
 * One REV-X, one input, two returns (**confirmed by ear**):
