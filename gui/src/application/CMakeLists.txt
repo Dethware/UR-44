@@ -29,6 +29,9 @@ qt_add_executable(ur44-control
     StripGraphs.h
     StripGraphs.cpp
 
+    ReverbGraph.h
+    ReverbGraph.cpp
+
     MixPage.h
     MixPage.cpp
 

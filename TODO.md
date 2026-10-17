@@ -58,7 +58,9 @@ outside the repository, in the workspace's `../TODO.md`.
       closest thing it offers.
 - [x] Channel Strip graphs: compressor transfer curve and EQ response, from the editor plug-in's own model
       (`gui/src/ur44/ChannelStripCurves.cpp`)
-- [ ] REV-X decay graph, like the dspMixFx editor
+- [x] REV-X decay graph, from the editor plug-in's model (`gui/src/ur44/ReverbShape.cpp`), with its auto zoom
+- [ ] REV-X graph: the editor's handles on the graph (reverb time, initial delay, decay, room size, the ratios) and
+      its zoom buttons (only the auto zoom so far)
 - [x] EQ graph: dragging the band points and the mid band's width (dspMixFx's graph is editable)
 - [ ] Factory scenes: offer the six scenes embedded in the TOOLS Cubase templates (`re/extract_template_scenes.py`)
       as starting points, built in like the Sweet Spot presets.

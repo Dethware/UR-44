@@ -18,6 +18,9 @@ qt_add_library(ur44 STATIC
     ChannelStripCurves.h
     ChannelStripCurves.cpp
 
+    ReverbShape.h
+    ReverbShape.cpp
+
     Transport.h
 
     AlsaTransport.h

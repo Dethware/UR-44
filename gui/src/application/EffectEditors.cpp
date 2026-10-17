@@ -19,6 +19,7 @@
 #include "Knob.h"
 #include "LevelMeter.h"
 #include "Protocol.h"
+#include "ReverbGraph.h"
 #include "ReverbTime.h"
 #include "StripGraphs.h"
 #include "SweetSpot.h"
@@ -440,6 +441,8 @@ ReverbEditor::ReverbEditor(Device* device, QWidget* parent) : QDialog(parent)
     top->addWidget(combo(device, "FxRevType", 0, this, [device](int32_t v) { Effects::setReverbType(*device, v); }));
     top->addStretch();
     layout->addLayout(top);
+    // the graph takes any extra height
+    layout->addWidget(new ReverbGraph(device, this), 1);
 
     auto* grid = new QGridLayout;
     Knob* time = nullptr;
