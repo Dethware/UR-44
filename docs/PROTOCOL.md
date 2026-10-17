@@ -296,21 +296,32 @@ the state with a dump (`Device::resync()`), not with parameter reads.
 
 **Not implemented** in the GUI yet.
 
-### On the device (confirmed, 2026-10-17, CC mode off)
+### On the device (confirmed, 2026-10-17, CC mode off; scratch scripts, inputs 3/4)
 
 Inputs 3/4 paired with `ChPairOnf[2]` and `[3]` = 1 (set directly, without MemAPI's copying), then changed through
 UR44 Control (which knows nothing of pairs) with a microphone on each input, then unpaired:
 
-* **The firmware links the pair itself.** A change to one channel is **copied into the other channel's parameter**
-  (a dump shows both with the latest value), but the device **sends nothing for the other channel**, so a client
-  that doesn't know about pairs shows stale values there. Linked: `ChHpfOnf`, `ChSendMixBus1Level` (with
-  `ChFaderLinkOnf` on; off is untested), `ChSendFxBusLevel`, the channel strip on/off. Per channel:
-  `ChPhaseOnf`, `ChSendMixBus1Pan` (centre stays centre on both: the pans are what separates the channels).
-  Untested: MIX 2, the solos, the send switches.
+* **One switch pairs both**: `ChPairOnf` on either channel sets it on both, and **copies the left channel's
+  settings to the right** (HPF, the send switches, the MIX levels with the fader link on; tested with input 3's
+  set first). The right channel keeps its phase and pans. Unpairing is one write too, and leaves both channels' settings
+  as they are.
+* **The firmware links the pair itself.** A change to one channel (either one) is **copied into the other
+  channel's parameter**, but the device **sends nothing**, not for the partner and not for the channel set (sets
+  aren't acknowledged): a client that doesn't know about pairs shows stale values for the partner. Linked:
+  `ChHpfOnf`, `ChHpfFreq`, `ChSendMixBus{1,2}Onf`, `ChSendFxBusOnf`, `ChSendFxBusLevel`,
+  `ChSendMixBus{1,2}SoloOnf` (and the firmware updates `SysSoloOnf` itself), the channel strip on/off, and
+  `ChSendMixBus{1,2}Level` while the fader link is on. Per channel: `ChPhaseOnf`, `ChSendMixBus{1,2}Pan` (centre
+  stays centre on both: the pans are what separates the channels).
+* **`ChFaderLinkOnf`** is linked too (set on either, both change). With it off, the MIX 1/2 levels are separate (the
+  FX Bus level stays linked); switching it back on copies the left channel's MIX levels to the right.
+* All of this matches MemAPI's tables (`pairItemTbl`, `notGrpItemTbl`, `faderLinkItemTbl`) below.
 * **The channel strip on a pair** becomes a stereo strip: switching it on for the pair gave input 3 `CHSTRIP 1`
   and input 4 `CHSTRIP 2`, and set `FxStereoLinkOnf[0]` and `[1]`. The two strips' `Fx*` values stay identical
   (edits are mirrored), but the Sweet Spot data (`Morph*` tables, `MorphSystemId/Name`) isn't: loading a preset on
   the pair only changed strip 1's tables.
+* **The guitar amp**: pairing takes it off a channel that has it (`ChGtrFxInsPrePatch` back to 0, like MemAPI).
+  Inserted on a paired channel, it's accepted on that channel only (either one), not mirrored to the partner (a
+  mono amp in a stereo pair; whether it processes audio there is untested). MemAPI doesn't let dspMixFx do that.
 * **Unpairing** switches the stereo link off and keeps every channel setting, but **swaps the strips**: input 3
   got `CHSTRIP 2` and input 4 `CHSTRIP 1`, each strip's morph tables moving with it (input 3 kept its preset).
 * **USB is unaffected**: no re-enumeration, same descriptors, the ALSA streams unchanged (6 + 6 channels). The
