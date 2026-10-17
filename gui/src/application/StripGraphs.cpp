@@ -46,7 +46,6 @@ CompressorGraph::CompressorGraph(Device* device, uint16_t strip, QWidget* parent
 {
     // as tall as the compressor's rows (it doesn't ask for more), and square: resizeEvent() follows the height
     setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Preferred);
-    setToolTip(tr("Compressor curve: output level (up) for the input level (across), -60 .. 0 dB"));
     followAll(this, device, strip, {"FxCompDrive", "FxCompRatio", "FxCompKnee", "FxCompThreshOfst", "FxCompBypass"},
               [this] { refresh(); });
     refresh();
@@ -76,6 +75,35 @@ void CompressorGraph::refresh()
     m_compressor = Compressor(compressorSettings(*m_device, m_strip));
     m_bypassed = m_device->value("FxCompBypass", m_strip).value_or(0) != 0;
     update();
+}
+
+QPointF CompressorGraph::thresholdPosition() const
+{
+    const QRectF area = Widgets::displayPanelArea(rect());
+    double t = m_compressor.thresholdDb();
+    double out = m_compressor.outputDb(t);
+    return QPointF(area.left() + area.width() * (t + COMP_RANGE_DB) / COMP_RANGE_DB,
+                   area.bottom() - area.height() * (out + COMP_RANGE_DB) / COMP_RANGE_DB);
+}
+
+bool CompressorGraph::event(QEvent* event)
+{
+    // A tooltip only for the threshold's point, none for the graph as a whole
+    if (event->type() == QEvent::ToolTip)
+    {
+        auto* help = static_cast<QHelpEvent*>(event);
+        if (m_compressor.thresholdDb() < 0.0 && QLineF(help->pos(), thresholdPosition()).length() <= 8.0)
+        {
+            QToolTip::showText(help->globalPos(),
+                               tr("Threshold: %1 dB").arg(m_compressor.thresholdDb(), 0, 'f', 1), this);
+        }
+        else
+        {
+            QToolTip::hideText();
+        }
+        return true;
+    }
+    return QWidget::event(event);
 }
 
 void CompressorGraph::paintEvent(QPaintEvent*)
@@ -111,10 +139,9 @@ void CompressorGraph::paintEvent(QPaintEvent*)
     // the threshold
     if (m_compressor.thresholdDb() < 0.0)
     {
-        double t = m_compressor.thresholdDb();
         p.setPen(Qt::NoPen);
         p.setBrush(curveColor(Widgets::STRIP_COLOR, m_bypassed));
-        p.drawEllipse(QPointF(x(t), y(m_compressor.outputDb(t))), 3, 3);
+        p.drawEllipse(thresholdPosition(), 3, 3);
     }
     Widgets::endDisplayPanel(p, rect());
 }
@@ -152,9 +179,6 @@ EqGraph::EqGraph(Device* device, uint16_t strip, QWidget* parent) : QWidget(pare
 {
     setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     setMouseTracking(true);
-    setToolTip(tr("EQ response: 20 Hz .. 20 kHz, -20 .. +20 dB (without the total gain).\n"
-                  "Drag a point to set its band's frequency and gain (Shift: fine, Ctrl: along one axis). The mid "
-                  "band's width handles, or the wheel over its point, set its width (Q)."));
     followAll(this, device, strip,
               {"FxEqLsvFreq", "FxEqLsvGain", "FxEqMidFreq", "FxEqMidGain", "FxEqMidQual", "FxEqHsvFreq",
                "FxEqHsvGain", "FxEqBypass"},
@@ -428,6 +452,18 @@ void EqGraph::wheelEvent(QWheelEvent* event)
         showValues(Handle::Mid, event->globalPosition().toPoint());
     }
     event->accept();
+}
+
+bool EqGraph::event(QEvent* event)
+{
+    // Tooltips only for the points and handles (their values), none for the graph as a whole
+    if (event->type() == QEvent::ToolTip)
+    {
+        showValues(m_drag.handle != Handle::None ? m_drag.handle : m_hover,
+                   static_cast<QHelpEvent*>(event)->globalPos());
+        return true;
+    }
+    return QWidget::event(event);
 }
 
 void EqGraph::leaveEvent(QEvent* event)

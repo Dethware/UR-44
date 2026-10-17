@@ -24,11 +24,13 @@ public:
     QSize minimumSizeHint() const override;
 
 protected:
+    bool event(QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void resizeEvent(QResizeEvent* event) override;
 
 private:
     void refresh();
+    QPointF thresholdPosition() const;
 
     UR44::Device* m_device;
     uint16_t m_strip;
@@ -54,6 +56,7 @@ public:
     static QColor bandColor(UR44::ChannelStripCurves::Eq::Band band);
 
 protected:
+    bool event(QEvent* event) override;
     void paintEvent(QPaintEvent* event) override;
     void mousePressEvent(QMouseEvent* event) override;
     void mouseMoveEvent(QMouseEvent* event) override;
