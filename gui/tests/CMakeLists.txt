@@ -18,5 +18,7 @@ add_qt_test(tst_Scene ur44)
 
 # application: the settings are tested on their own, the application isn't a library
 add_qt_test(tst_Settings shared)
-target_sources(tst_Settings PRIVATE ${PROJECT_SOURCE_DIR}/src/application/Settings.cpp)
+target_sources(tst_Settings PRIVATE ${PROJECT_SOURCE_DIR}/src/application/Settings.cpp
+                                    ${PROJECT_SOURCE_DIR}/src/application/Autostart.cpp)
+target_compile_definitions(tst_Settings PRIVATE UR44_APP_ID="${UR44_APP_ID}")
 target_include_directories(tst_Settings PRIVATE ${PROJECT_SOURCE_DIR}/src/application)

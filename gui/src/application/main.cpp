@@ -1,6 +1,10 @@
 #include <QCommandLineParser>
 #include <QDialog>
+#include <QLocalServer>
+#include <QLocalSocket>
 #include <QTimer>
+
+#include <unistd.h>
 
 #include "AboutDialog.h"
 #include "EffectEditors.h"
@@ -22,14 +26,49 @@ int main(int argc, char *argv[])
     QCommandLineOption editor("editor", "Open an effect editor once the device state is loaded: reverb, amp, or "
                                         "strip:<channel 1-6>, or about (the About dialog). A screenshot then shows "
                                         "it.", "name");
+    QCommandLineOption background("background", "Start without a window (as at login): it opens from the tray icon, "
+                                                "or by starting UR44 Control again.");
+    parser.addOption(background);
     parser.addOption(screenshot);
     parser.addOption(tab);
     parser.addOption(editor);
     parser.process(app);
 
+    // One instance per user: the device's MIDI port can only be open once. Starting it again (say, from the menu
+    // while it sits in the tray) shows the running one's window instead. Screenshots (for development) run alone.
+    const QString instanceName = QStringLiteral(UR44_APP_ID "-%1").arg(getuid());
+    QLocalServer instanceServer;
+    if (!parser.isSet(screenshot))
+    {
+        QLocalSocket running;
+        running.connectToServer(instanceName);
+        if (running.waitForConnected(500))
+        {
+            running.write("show\n");
+            running.waitForBytesWritten(500);
+            return 0;
+        }
+        QLocalServer::removeServer(instanceName); // a stale socket from an instance that crashed
+        instanceServer.listen(instanceName);
+    }
+
+    // The window decides when to quit: with the tray icon, closing it may only hide it
+    app.setQuitOnLastWindowClosed(false);
+
     MainWindow w;
+    w.setRememberGeometry(!parser.isSet(screenshot));
     w.showTab(parser.value(tab).toInt());
-    w.show();
+    QObject::connect(&instanceServer, &QLocalServer::newConnection, &w, [&w, &instanceServer]() {
+        while (QLocalSocket* other = instanceServer.nextPendingConnection())
+        {
+            QObject::connect(other, &QLocalSocket::disconnected, other, &QObject::deleteLater);
+            w.showWindow();
+        }
+    });
+    if (parser.isSet(screenshot) || (!parser.isSet(background) && !MainWindow::startsHidden()))
+    {
+        w.show();
+    }
 
     if (parser.isSet(editor))
     {

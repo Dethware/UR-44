@@ -1,6 +1,11 @@
+#include <QApplication>
+#include <QCloseEvent>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMenu>
+#include <QSystemTrayIcon>
 #include <QTabWidget>
+#include <QTimer>
 #include <QToolButton>
 
 #include "AboutDialog.h"
@@ -11,6 +16,7 @@
 #include "DevicePage.h"
 #include "MixPage.h"
 #include "ScenesPanel.h"
+#include "SettingsPage.h"
 #include "Widgets.h"
 
 #include "MainWindow.h"
@@ -38,6 +44,10 @@ MainWindow::MainWindow(QWidget *parent)
         });
     }
     m_ui->tabs->addTab(new DevicePage(m_device, m_ui->tabs), tr("Device"));
+    auto* settingsPage = new SettingsPage(m_ui->tabs);
+    m_ui->tabs->addTab(settingsPage, tr("Settings"));
+    m_ui->tabs->setTabToolTip(m_ui->tabs->count() - 1, tr("UR44 Control's own options: startup and the tray"));
+    setWindowIcon(appIcon());
     m_ui->tabs->setTabToolTip(0, tr("MAIN OUTPUT, LINE OUTPUT 1/2, PHONES 1"));
     m_ui->tabs->setTabToolTip(1, tr("LINE OUTPUT 3/4, and PHONES 2 if selected"));
 
@@ -77,13 +87,22 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_device, &Device::meterFrame, this, &MainWindow::showMeters);
     connect(m_ui->tabs, &QTabWidget::currentChanged, this, &MainWindow::pointMetersAtVisibleMix);
 
+    // where it was last time (before the window is first shown; with Wayland, the compositor places it)
+    const QByteArray geometry = QByteArray::fromBase64(APPLICATION->settings.windowGeometry.toLatin1());
+    if (!geometry.isEmpty())
+    {
+        restoreGeometry(geometry);
+    }
+
     updateDeviceStatus();
     updateActivityStatus();
+    updateTray();
     m_device->start();
 }
 
 MainWindow::~MainWindow()
 {
+    saveWindowGeometry();
     // The device would otherwise be destroyed last, after the pages and status bar it notifies
     delete m_device;
     m_device = nullptr;
@@ -132,6 +151,99 @@ QWidget* MainWindow::makePhones2Selector(QWidget* parent)
     return box;
 }
 
+QIcon MainWindow::appIcon()
+{
+    QIcon builtIn;
+    for (int size : {16, 22, 24, 32, 48, 64, 128, 256})
+    {
+        builtIn.addFile(QString(":/icons/ur44control-%1.png").arg(size), QSize(size, size));
+    }
+    return QIcon::fromTheme(UR44_APP_ID, builtIn);
+}
+
+bool MainWindow::startsHidden()
+{
+    return APPLICATION->settings.startHidden;
+}
+
+void MainWindow::updateTray()
+{
+    if (m_tray)
+    {
+        return;
+    }
+    if (!QSystemTrayIcon::isSystemTrayAvailable())
+    {
+        // started at login, the desktop's panel (and its tray) may not be up yet: keep looking for a while
+        if (m_trayChecks++ < TRAY_CHECKS)
+        {
+            QTimer::singleShot(TRAY_CHECK_MS, this, &MainWindow::updateTray);
+        }
+        return;
+    }
+    m_tray = new QSystemTrayIcon(appIcon(), this);
+    auto* menu = new QMenu(this);
+    m_showAction = menu->addAction(tr("Show UR44 Control"), this, &MainWindow::toggleWindow);
+    menu->addSeparator();
+    menu->addAction(tr("Quit"), this, &MainWindow::quit);
+    connect(menu, &QMenu::aboutToShow, this, [this]() {
+        m_showAction->setText(isVisible() ? tr("Hide UR44 Control") : tr("Show UR44 Control"));
+    });
+    m_tray->setContextMenu(menu);
+    connect(m_tray, &QSystemTrayIcon::activated, this, [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::Trigger)
+        {
+            toggleWindow();
+        }
+    });
+    updateDeviceStatus(); // the tooltip
+    m_tray->show();
+}
+
+void MainWindow::showWindow()
+{
+    if (isMinimized())
+    {
+        showNormal();
+    }
+    show();
+    raise();
+    activateWindow();
+}
+
+void MainWindow::toggleWindow()
+{
+    if (isVisible())
+    {
+        hide();
+    }
+    else
+    {
+        showWindow();
+    }
+}
+
+void MainWindow::quit()
+{
+    saveWindowGeometry();
+    m_quitting = true;
+    QApplication::quit();
+}
+
+void MainWindow::closeEvent(QCloseEvent* event)
+{
+    if (!m_quitting && m_tray)
+    {
+        // keep running in the tray
+        hide();
+        event->ignore();
+        return;
+    }
+    QMainWindow::closeEvent(event);
+    m_quitting = true;
+    QApplication::quit();
+}
+
 void MainWindow::showTab(int index)
 {
     if (index >= 0 && index < m_ui->tabs->count())
@@ -143,11 +255,29 @@ void MainWindow::showTab(int index)
 void MainWindow::showEvent(QShowEvent* event)
 {
     QMainWindow::showEvent(event);
+    m_wasShown = true;
     m_device->setMetersEnabled(true);
+}
+
+void MainWindow::saveWindowGeometry()
+{
+    // only once the window has been shown: a window started in the tray has no geometry of its own yet
+    if (!m_wasShown || !m_rememberGeometry)
+    {
+        return;
+    }
+    const QString geometry = QString::fromLatin1(saveGeometry().toBase64());
+    if (geometry != APPLICATION->settings.windowGeometry)
+    {
+        APPLICATION->settings.windowGeometry = geometry;
+        APPLICATION->settings.scheduleSave();
+    }
 }
 
 void MainWindow::hideEvent(QHideEvent* event)
 {
+    // closing to the tray hides the window: keep where it was
+    saveWindowGeometry();
     QMainWindow::hideEvent(event);
     if (m_device)
     {
@@ -174,6 +304,10 @@ void MainWindow::updateDeviceStatus()
             break;
     }
     m_deviceStatusLabel->setText(text);
+    if (m_tray)
+    {
+        m_tray->setToolTip(tr("UR44 Control\n%1").arg(text));
+    }
     if (!m_device->isReady())
     {
         for (auto* page : std::as_const(m_mixPages))

@@ -1,7 +1,9 @@
 # TODO
 
-Outstanding work and ideas. Protocol details are in [docs/PROTOCOL.md](docs/PROTOCOL.md), the reverse engineering
-notes in [docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md).
+Outstanding work and ideas for the reverse engineering and the code. Protocol details are in
+[docs/PROTOCOL.md](docs/PROTOCOL.md), the reverse engineering notes in
+[docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md). Releases, packaging and upstream contributions are tracked
+outside the repository, in the workspace's `../TODO.md`.
 
 ## To verify on the device
 
@@ -36,21 +38,8 @@ notes in [docs/REVERSE_ENGINEERING.md](docs/REVERSE_ENGINEERING.md).
 
 ## Linux integration
 
-- [ ] **UCM profile upstream**: [alsa-project/alsa-ucm-conf#882](https://github.com/alsa-project/alsa-ucm-conf/pull/882)
-      (non-CC mode with the FX Bus; checked in both modes). Follow up on review; `linux/ucm2/` holds the same files
-      until it's released. The earlier profile work, #584, is merged.
-- [ ] **UR22C / UR24C Direct use case fix upstream**:
-      [alsa-project/alsa-ucm-conf#883](https://github.com/alsa-project/alsa-ucm-conf/pull/883). With firmware 01xx/02xx
-      their Direct use case kept 4 capture channels (UCM evaluates `Macro` before `If`). Checked with alsaucm using the
-      UR44 as a stand-in (bcdDevice 0212); not tested on the real devices. Follow up on review.
-
-- [ ] **Linux packaging**: the build system is ready (GNUInstallDirs, desktop entry, icon, AppStream metadata with
-      the GitHub links, `BUILD_TESTING`, `LICENSE`/`NOTICE`), and the AUR packages `ur44-control` and
-      `ur44-control-git` live next to this checkout, in `../aur/` (each its own AUR git repository). Left:
-      - tag `v0.1.0` on GitHub, then put the release tarball's checksum into `ur44-control` (`updpkgsums`) and
-        regenerate its `.SRCINFO`
-      - publish both to the AUR
-      - screenshots in the AppStream metadata
+- [ ] `linux/ucm2/`: keep the same as the UR44 UCM change submitted upstream until alsa-ucm-conf releases it (its
+      review and the other upstream work are tracked in the workspace's `../TODO.md`).
 
 ## Application
 

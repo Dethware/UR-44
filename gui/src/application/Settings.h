@@ -79,11 +79,19 @@ struct Settings
     /// Device settings, per model
     UR44Settings ur44;
 
+    /// Start without showing the window (it opens from the tray icon). Starts at login always are.
+    bool startHidden = false;
+    /// The main window's size, position and state (QWidget::saveGeometry(), base64)
+    QString windowGeometry;
+    // (Starting at login isn't stored here: the autostart entry itself is the setting, see Autostart.h.)
+
     QJsonObject extra;
 
     template<typename S> void serialize(S& fp)
     {
         fp.property("ur44", ur44);
+        fp.property("start_hidden", startHidden);
+        fp.property("window_geometry", windowGeometry);
     }
 
 private:

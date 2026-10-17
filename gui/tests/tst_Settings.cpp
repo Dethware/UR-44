@@ -1,6 +1,7 @@
 #include <QtTest>
 
 #include "FileSystem.h"
+#include "Autostart.h"
 #include "Settings.h"
 
 class SettingsTest : public QObject
@@ -22,6 +23,49 @@ private:
     }
 
 private slots:
+    void appOptions_roundTrip()
+    {
+        QString path = newPath();
+        {
+            Settings settings;
+            settings.setPath(path);
+            QVERIFY(!settings.startHidden);
+            settings.startHidden = true;
+            QVERIFY(settings.save());
+        }
+        QVERIFY(readFile(path)["start_hidden"].toBool());
+        Settings settings;
+        settings.setPath(path);
+        QVERIFY(settings.load());
+        QVERIFY(settings.startHidden);
+    }
+
+    void autostart_entry()
+    {
+        // test mode: a throwaway config location, not the user's ~/.config
+        QStandardPaths::setTestModeEnabled(true);
+        Autostart::setEnabled(false);
+        QVERIFY(!Autostart::isEnabled());
+        QVERIFY(Autostart::entryPath().endsWith("/autostart/" UR44_APP_ID ".desktop"));
+
+        QString error;
+        QVERIFY2(Autostart::setEnabled(true, &error), qPrintable(error));
+        QVERIFY(Autostart::isEnabled());
+        QFile entry(Autostart::entryPath());
+        QVERIFY(entry.open(QIODevice::ReadOnly));
+        const QString text = QString::fromUtf8(entry.readAll());
+        QVERIFY(text.startsWith("[Desktop Entry]\n"));
+        QVERIFY(text.contains("Type=Application\n"));
+        // the running executable, quoted as the desktop entry specification wants
+        QVERIFY(text.contains("Exec=\"" + QCoreApplication::applicationFilePath() + "\" --background\n"));
+        QVERIFY(text.contains("Icon=" UR44_APP_ID "\n"));
+
+        QVERIFY(Autostart::setEnabled(false, &error));
+        QVERIFY(!Autostart::isEnabled());
+        QVERIFY(Autostart::setEnabled(false, &error)); // already off is fine
+        QStandardPaths::setTestModeEnabled(false);
+    }
+
     void initTestCase()
     {
         QVERIFY(m_dir.isValid());
