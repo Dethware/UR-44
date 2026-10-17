@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <complex>
+#include <cstring>
 
 #include "Device.h"
 #include "Parameters.h"
@@ -58,6 +59,49 @@ double db2amp(double db)
 constexpr double SHELF_SLOPE = 0.32;
 constexpr double PEAK_Q_SCALING = 0.70;
 constexpr double SHAPE_REFERENCE_DB = 18.0;
+}
+
+double valueNumber(const char* parameter, int32_t value)
+{
+    const Parameter& p = Parameters::instance()[parameter];
+    if (!p.labels)
+    {
+        return value;
+    }
+    if (std::strcmp(p.unit, "dB") == 0)
+    {
+        return QString::fromLatin1(p.labels[p.clamp(value) - p.min]).toDouble();
+    }
+    return labelNumber(parameter, value);
+}
+
+int32_t nearestValue(const char* parameter, double number)
+{
+    const Parameter& p = Parameters::instance()[parameter];
+    const bool logarithmic = number > 0.0 && std::strcmp(p.unit, "dB") != 0;
+    auto distance = [&](int32_t v) {
+        double n = valueNumber(parameter, v);
+        return logarithmic && n > 0.0 ? std::abs(std::log(n / number)) : std::abs(n - number);
+    };
+    int32_t best = p.min;
+    for (int32_t v = p.min + 1; v <= p.max; ++v)
+    {
+        if (distance(v) < distance(best))
+        {
+            best = v;
+        }
+    }
+    return best;
+}
+
+double qForOctaves(double octaves)
+{
+    return 1.0 / (2.0 * std::sinh(std::log(2.0) / 2.0 * octaves));
+}
+
+double octavesForQ(double q)
+{
+    return 2.0 / std::log(2.0) * std::asinh(1.0 / (2.0 * q));
 }
 
 CompressorSettings compressorSettings(const Device& device, uint16_t strip)
@@ -187,7 +231,9 @@ Eq::Eq(const EqSettings& settings, double sampleRate) : m_sampleRate(sampleRate)
                 }
             }
             double a = db2amp(std::abs(g));
-            double k = (1.0 / q) / std::pow(db2amp(std::abs(g) - SHAPE_REFERENCE_DB), PEAK_Q_SCALING);
+            double scaling = std::pow(db2amp(std::abs(g) - SHAPE_REFERENCE_DB), PEAK_Q_SCALING);
+            double k = (1.0 / q) / scaling;
+            m_midQScale = q * scaling / labelNumber("FxEqMidQual", settings.midQ);
             double t = std::tan(PI * f / fs);
             double t2 = t * t;
             double numerator = g >= 0.0 ? a * t * k : t * k;

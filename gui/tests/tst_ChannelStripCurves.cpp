@@ -121,12 +121,39 @@ private slots:
         QVERIFY(boost.responseDb(500.0, Eq::Mid) < 6.0);
         QVERIFY(boost.responseDb(2000.0, Eq::Mid) < 6.0);
         QVERIFY(near(boost.responseDb(20.0, Eq::Mid), 0.0, 0.1));
+        // below 18 dB the band is wider than its nominal Q (and the same either way)
+        QVERIFY(near(boost.midQScale(), std::pow(10.0, (6.0 - 18.0) / 20.0 * 0.7), 1e-9));
         // a cut mirrors the boost
         s.midGain = gain(-6.0);
         Eq cut(s);
         for (double f : {200.0, 700.0, 1000.0, 1500.0, 5000.0})
         {
             QVERIFY(near(cut.responseDb(f, Eq::Mid), -boost.responseDb(f, Eq::Mid), 1e-9));
+        }
+    }
+
+    void values_numbersAndBack()
+    {
+        QCOMPARE(valueNumber("FxEqMidFreq", valueOf("FxEqMidFreq", "1.06k")), 1060.0);
+        QCOMPARE(valueNumber("FxEqMidGain", gain(-4.5)), -4.5);
+        QCOMPARE(valueNumber("FxCompRatio", valueOf("FxCompRatio", "INF")), 3000.0);
+        // nearest: on a log scale for frequencies, clamped to the range
+        QCOMPARE(nearestValue("FxEqMidFreq", 1030.0), valueOf("FxEqMidFreq", "1.06k"));
+        QCOMPARE(nearestValue("FxEqMidFreq", 5.0), valueOf("FxEqMidFreq", "20.0"));
+        QCOMPARE(nearestValue("FxEqLsvFreq", 20000.0), Parameters::instance()["FxEqLsvFreq"].max);
+        QCOMPARE(nearestValue("FxEqMidGain", 30.0), gain(18.0));
+        QCOMPARE(nearestValue("FxEqMidGain", 2.04), gain(2.0));
+        QCOMPARE(nearestValue("FxEqMidQual", 2.0), valueOf("FxEqMidQual", "2.00"));
+    }
+
+    void bandwidth_octavesAndQ()
+    {
+        // Q 1.41 is one octave, Q 0.67 two
+        QVERIFY(near(qForOctaves(1.0), 1.4142, 1e-3));
+        QVERIFY(near(qForOctaves(2.0), 0.6667, 1e-3));
+        for (double q : {0.5, 1.0, 4.0, 16.0})
+        {
+            QVERIFY(near(qForOctaves(octavesForQ(q)), q, 1e-9));
         }
     }
 };

@@ -46,6 +46,8 @@ inline QColor displayLabel()
 /// A sunken display panel with rounded corners, filling `rect`: paints the background and clips the painter to it.
 /// Returns the area to draw in. Finish with endDisplayPanel().
 QRectF beginDisplayPanel(QPainter& p, const QRectF& rect, bool enabled);
+/// The area beginDisplayPanel() returns, for mapping mouse positions
+QRectF displayPanelArea(const QRectF& rect);
 /// The panel's sunken edge, over what was drawn; resets the clip
 void endDisplayPanel(QPainter& p, const QRectF& rect);
 

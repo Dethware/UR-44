@@ -37,6 +37,14 @@ struct EqSettings
     int32_t highGain = 180; // FxEqHsvGain
 };
 
+/// The number a strip parameter's value stands for: Hz, Q, ratio (INF is 3000), dB for the EQ gains
+double valueNumber(const char* parameter, int32_t value);
+/// The parameter's value nearest to `number` (for frequencies and Q: the nearest on a log scale)
+int32_t nearestValue(const char* parameter, double number);
+/// The band Q for a bandwidth in octaves, and back (the nominal Q, before the gain scaling)
+double qForOctaves(double octaves);
+double octavesForQ(double q);
+
 /// The strip's current settings (defaults for values the device hasn't reported)
 CompressorSettings compressorSettings(const Device& device, uint16_t strip);
 EqSettings eqSettings(const Device& device, uint16_t strip);
@@ -82,6 +90,9 @@ public:
     /// The band's centre (Mid) or corner (Low, High) frequency in Hz, and its gain in dB
     double frequency(Band band) const;
     double gainDb(Band band) const;
+    /// The mid band's effective Q over its nominal Q: below 1 (wider) under 18 dB of gain, and towards high
+    /// frequencies
+    double midQScale() const { return m_midQScale; }
 
 private:
     struct Section
@@ -94,6 +105,7 @@ private:
     double m_sampleRate;
     double m_frequency[3];
     double m_gain[3];
+    double m_midQScale = 1.0;
     Section m_sections[3];
 };
 

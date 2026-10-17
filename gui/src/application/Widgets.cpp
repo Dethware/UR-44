@@ -35,6 +35,11 @@ QRectF beginDisplayPanel(QPainter& p, const QRectF& rect, bool enabled)
     p.fillPath(path, displayBackground(enabled));
     p.restore();
     p.setClipPath(path);
+    return displayPanelArea(rect);
+}
+
+QRectF displayPanelArea(const QRectF& rect)
+{
     return rect.adjusted(PANEL_PADDING, PANEL_PADDING, -PANEL_PADDING, -PANEL_PADDING);
 }
 
