@@ -16,7 +16,7 @@ No driver is needed.
 | `tools/ur44.py` | CLI/library: `version`, `get`, `set`, `dump`, `mix 1\|2`, `phones2`, `monitor` |
 | `tools/ur44_params.py`, `tools/ur44_labels.json` | Parameter table and display labels (generated from memapi) |
 | `tools/ur44_sweet_spot.py` | The 34 factory Sweet Spot Data presets (Yamaha's, generated from the TOOLS .ssd files) |
-| `gui/` | **UR44 Control**, the Qt 6 mixer application (C++17, CMake). See [gui/README](gui/README) for details |
+| `gui/` | **UR44 Control**, the Qt 6 mixer application (C++17, CMake). See [gui/README](gui/README.md) for details |
 | `docs/PROTOCOL.md` | The protocol as currently understood, with confirmed vs static-only marked |
 | `docs/REVERSE_ENGINEERING.md` | Vendor binaries, addresses, tooling, tricks |
 | `TODO.md` | Outstanding work and ideas |
