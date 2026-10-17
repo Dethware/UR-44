@@ -13,9 +13,11 @@ outside the repository, in the workspace's `../TODO.md`.
       (e.g. record through the DAW with the strip on INS vs MON and compare).
 - [ ] **`HaInputGain[2]` = LINE 5/6 reference level**, with 1 = -10 dBV (from memapi's default and the manual's
       stated default). `[0..1]` presumably unused.
-- [ ] **What the device does with `ChPairOnf` by itself** (DSP, meters, the strip's stereo link). The linking in
-      docs/PROTOCOL.md "Input pairing" is all MemAPI's. Test: pair 1/2, read the right channel's values and the
-      meters, unpair, restore.
+- [x] **What the device does with `ChPairOnf` by itself**: it links the pair in the firmware (copies changes to the
+      partner without reporting them, stereo strip, strip swap on unpairing); USB unaffected. See docs/PROTOCOL.md.
+- [ ] **Pairing, the rest**: MIX 2 levels, solos, send switches and pans under a pair; whether the device sends
+      *anything* for the partner (watch `tools/ur44.py monitor` while changing a paired channel); what pairing does
+      to two channels that differ (the copy direction, if any); the guitar amp on a paired channel.
 - [ ] **The fader link, by experiment**: which faders a pair has and which levels each one controls, with
       `ChFaderLinkOnf` on and off (MemAPI: with it off, the two channels' MIX 1/2 levels are separate; the newer
       dspMixFx shows one fader per pair when linked).
@@ -63,9 +65,10 @@ outside the repository, in the workspace's `../TODO.md`.
         itself ends right). Replies older than the value's latest change should be dropped.
 
 - [ ] **Input pairing** (docs/PROTOCOL.md "Input pairing"): a link button per input pair (1/2, 3/4, 5/6) and the
-      fader link; mirroring changes to both channels of a pair (except phase, pans, and the MIX levels while the
-      fader link is off); the copy when pairing; the stereo channel strip (two adjacent strips, stereo linked); no
-      guitar amp on a pair. A layout hint, from a newer device's dspMixFx (its functions may differ): a pair is
+      fader link. The firmware does the linking but doesn't report the partner's changes, so the app has to mirror
+      them in its own state (or re-read the partner) for every linked parameter, and resync the strips after
+      pairing/unpairing (it moves and swaps them). Loading Sweet Spot data on a stereo strip: load it into both
+      strips (the firmware doesn't copy the morph tables). A layout hint, from a newer device's dspMixFx (its functions may differ): a pair is
       one double-width strip, with the link button (a chain) at the top between the two channels (shown on
       unpaired pairs too); one HPF, one set of inserts, one send knob, one mute/solo and one fader with a stereo
       meter, but a phase switch and a pan knob per channel (to combine the two channels correctly, e.g. a stereo

@@ -292,11 +292,35 @@ parameters has to (implemented in `gui/src/ur44/Effects.cpp`):
 Other parameters answer normally, and the bulk dump has the right value. So after an FX assign/unassign, read
 the state with a dump (`Device::resync()`), not with parameter reads.
 
-## Input pairing (host-side, static)
+## Input pairing
+
+**Not implemented** in the GUI yet.
+
+### On the device (confirmed, 2026-10-17, CC mode off)
+
+Inputs 3/4 paired with `ChPairOnf[2]` and `[3]` = 1 (set directly, without MemAPI's copying), then changed through
+UR44 Control (which knows nothing of pairs) with a microphone on each input, then unpaired:
+
+* **The firmware links the pair itself.** A change to one channel is **copied into the other channel's parameter**
+  (a dump shows both with the latest value), but the device **sends nothing for the other channel**, so a client
+  that doesn't know about pairs shows stale values there. Linked: `ChHpfOnf`, `ChSendMixBus1Level` (with
+  `ChFaderLinkOnf` on; off is untested), `ChSendFxBusLevel`, the channel strip on/off. Per channel:
+  `ChPhaseOnf`, `ChSendMixBus1Pan` (centre stays centre on both: the pans are what separates the channels).
+  Untested: MIX 2, the solos, the send switches.
+* **The channel strip on a pair** becomes a stereo strip: switching it on for the pair gave input 3 `CHSTRIP 1`
+  and input 4 `CHSTRIP 2`, and set `FxStereoLinkOnf[0]` and `[1]`. The two strips' `Fx*` values stay identical
+  (edits are mirrored), but the Sweet Spot data (`Morph*` tables, `MorphSystemId/Name`) isn't: loading a preset on
+  the pair only changed strip 1's tables.
+* **Unpairing** switches the stereo link off and keeps every channel setting, but **swaps the strips**: input 3
+  got `CHSTRIP 2` and input 4 `CHSTRIP 1`, each strip's morph tables moving with it (input 3 kept its preset).
+* **USB is unaffected**: no re-enumeration, same descriptors, the ALSA streams unchanged (6 + 6 channels). The
+  pair isn't visible to the computer; recording still gets two mono channels.
+
+### MemAPI (static)
 
 From macOS MemAPI (`smd_SetPrmRelPair`, `smd_SetPrmRelFaderLink`, `CsmdModel::_GetGroupInfo`, `setChStripPatch`)
-and dspMixFx. **Not implemented** in the GUI yet, and **not checked on the device**: the device may do nothing with
-the flag itself, all the linking below is MemAPI's.
+and dspMixFx. MemAPI does the same linking on its side (on its copy of the state, which it then sends); with the
+firmware doing it too, it's at least how dspMixFx keeps its own display in step.
 
 * The pairs are inputs 1/2, 3/4, 5/6 (channels `2k` and `2k+1`). dspMixFx has a "Link Channels" button per pair.
 * **`ChPairOnf[ch]`**: the pair switch, set on both channels of the pair. **`ChFaderLinkOnf[ch]`** (default 1): while
