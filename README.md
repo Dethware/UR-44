@@ -9,6 +9,8 @@ On Linux the device runs in its class-compliant USB configuration. Audio works t
 snd-usb-audio, and the mixer is controlled with Yamaha-style SysEx on the **second USB-MIDI port**.
 No driver is needed.
 
+![UR44 Control: MIX 1, with the inputs, the computer's playback, REV-X and the master](screenshots/main-window.png)
+
 ## Layout
 
 | Path | Contents |
@@ -21,6 +23,7 @@ No driver is needed.
 | `docs/REVERSE_ENGINEERING.md` | Vendor binaries, addresses, tooling, tricks |
 | `TODO.md` | Outstanding work and ideas |
 | `docs/data/` | Raw evidence: descriptor dump, live address sweep, a state dump |
+| `screenshots/` | Screenshots of the GUI (also used by the AppStream metadata) |
 | `re/` | Reproducible RE scripts: vendor extraction, generators, Ghidra runner, finders, sweep |
 | `vendor/` | (git-ignored) download cache, unpacked downloads, extracted binaries, decompilations |
 
@@ -50,6 +53,13 @@ build/gui/src/application/ur44-control
 
 It finds the UR44 by its ALSA card name and owns the MIDI port while it runs, so close it before using
 `tools/ur44.py` (and the other way around).
+
+The effect editors draw what dspMixFx's do, from the same models of the effects. You can drag the EQ's points and
+the REV-X graph's handles to set the parameters.
+
+| Sweet Spot Morphing Channel Strip | REV-X |
+|---|---|
+| ![The Channel Strip editor: compressor curve, gain reduction, and the EQ's response](screenshots/channel-strip.png) | ![The REV-X editor: the decay at 100 Hz, 1 kHz and 10 kHz, the reverb time per frequency, and the filters](screenshots/rev-x.png) |
 
 Installing (e.g. for a distribution package) uses the standard CMake and GNU directory variables:
 

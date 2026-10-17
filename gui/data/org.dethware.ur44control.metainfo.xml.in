@@ -26,6 +26,21 @@
       affiliated with or endorsed by Yamaha or Steinberg.
     </p>
   </description>
+  <!-- The screenshots of this version: from its tag on GitHub, so they stay what it looked like -->
+  <screenshots>
+    <screenshot type="default">
+      <caption>The mixer: inputs, the computer's playback, REV-X and the master</caption>
+      <image>https://raw.githubusercontent.com/Dethware/UR-44/v@PROJECT_VERSION@/screenshots/main-window.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The Sweet Spot Morphing Channel Strip, with the compressor curve and the EQ's response</caption>
+      <image>https://raw.githubusercontent.com/Dethware/UR-44/v@PROJECT_VERSION@/screenshots/channel-strip.png</image>
+    </screenshot>
+    <screenshot>
+      <caption>The REV-X reverb and its decay graph</caption>
+      <image>https://raw.githubusercontent.com/Dethware/UR-44/v@PROJECT_VERSION@/screenshots/rev-x.png</image>
+    </screenshot>
+  </screenshots>
   <url type="homepage">https://github.com/Dethware/UR-44</url>
   <url type="bugtracker">https://github.com/Dethware/UR-44/issues</url>
   <url type="vcs-browser">https://github.com/Dethware/UR-44</url>

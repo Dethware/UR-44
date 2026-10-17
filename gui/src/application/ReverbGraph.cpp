@@ -21,11 +21,13 @@ using namespace UR44::ReverbShape;
 
 namespace
 {
-// dspMixFx's layout (YSReverbGraph): a time axis of 280 px; the depth, 20 Hz .. 20 kHz, shifts by 90 px right and
-// up; the level, -60 .. 0 dB, is 84 px high
-constexpr double TIME_SPAN = 280.0;
-constexpr double DEPTH_SPAN = 90.0;
-constexpr double LEVEL_SPAN = 84.0;
+// The 3D layout. The depth axis (20 Hz .. 20 kHz) runs up and to the right at this angle, whatever the size; it takes
+// DEPTH_SHARE of the height and the level (-60 .. 0 dB) the rest, and the time axis the width it leaves. dspMixFx's
+// graph (YSReverbGraph) is 45°, with the depth 90 px up and the level 84 px.
+constexpr double DEPTH_ANGLE_DEGREES = 45.0;
+constexpr double DEPTH_SHARE = 90.0 / (90.0 + 84.0);
+// The time axis keeps at least this share of the width (the depth gets shorter, at the same angle, if it must)
+constexpr double MIN_TIME_SHARE = 0.4;
 constexpr double MIN_HZ = 20.0;
 constexpr double DECADES = 3.0;
 // The curves' resolution: at least the editor's (280 points per line, 90 across the frequencies)
@@ -145,10 +147,19 @@ QRectF ReverbGraph::autoBadge() const
 QPointF ReverbGraph::project(double time, double depth, double level) const
 {
     const QRectF area = plotArea();
-    const double width = TIME_SPAN + DEPTH_SPAN;
-    const double height = DEPTH_SPAN + LEVEL_SPAN;
-    return QPointF(area.left() + area.width() * (TIME_SPAN * time + DEPTH_SPAN * depth) / width,
-                   area.bottom() - area.height() * (DEPTH_SPAN * depth + LEVEL_SPAN * level) / height);
+    const double angle = DEPTH_ANGLE_DEGREES * 3.14159265358979323846 / 180.0;
+    // the depth axis' rise and run, at the angle
+    double rise = area.height() * DEPTH_SHARE;
+    double run = rise / std::tan(angle);
+    if (run > area.width() * (1.0 - MIN_TIME_SHARE))
+    {
+        run = area.width() * (1.0 - MIN_TIME_SHARE);
+        rise = run * std::tan(angle);
+    }
+    const double timeLength = area.width() - run;
+    const double levelHeight = area.height() * (1.0 - DEPTH_SHARE);
+    return QPointF(area.left() + timeLength * time + run * depth,
+                   area.bottom() - rise * depth - levelHeight * level);
 }
 
 // --- handles
