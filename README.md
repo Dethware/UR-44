@@ -61,8 +61,8 @@ DESTDIR="$pkgdir" cmake --install build
 
 That installs `ur44-control`, a desktop entry, an icon and AppStream metadata (all named after the application ID
 `org.dethware.ur44control`), and `LICENSE`, `NOTICE` and this README into the doc directory. `BUILD_TESTING=OFF`
-skips the tests and the Qt Test dependency. The version is set in `gui/CMakeLists.txt` (`project()`, with the
-release date next to it for the AppStream metadata). The UCM profile in `linux/ucm2/` isn't installed: it belongs to
+skips the tests and the Qt Test dependency. The version is in the file `VERSION`, its release date (for the AppStream
+metadata) in `RELEASE_DATE`. The UCM profile in `linux/ucm2/` isn't installed: it belongs to
 alsa-ucm-conf.
 
 ## Rebuilding the generated files
