@@ -11,6 +11,9 @@ struct StoredScene
     QString name;
     /// The scene payload (device byte order), base64
     QString data;
+    /// PatchLoopbackMode (0 off, 1 on) when the scene was stored. The device's scene format leaves it out, so it's
+    /// kept here; -1 for scenes without it (imported from dspMixFx files, or stored before it was kept).
+    int32_t loopback = -1;
 
     QJsonObject extra;
 
@@ -18,6 +21,7 @@ struct StoredScene
     {
         fp.property("name", name);
         fp.property("data", data);
+        fp.property("loopback", loopback);
     }
 };
 

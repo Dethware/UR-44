@@ -110,6 +110,26 @@ private slots:
         QCOMPARE(settings.ur44.midiPort, QString("hw:2,0,1"));
     }
 
+    void scenes_keepLoopback()
+    {
+        // scenes stored before loopback was kept (and imported ones) have none: -1
+        QString path = newPath();
+        FS::write(path, R"({"ur44": {"scenes": [{"name": "Old", "data": "AA=="}]}})");
+        Settings settings;
+        settings.setPath(path);
+        QVERIFY(settings.load());
+        QCOMPARE(settings.ur44.scenes.size(), 1);
+        QCOMPARE(settings.ur44.scenes[0].loopback, -1);
+
+        settings.ur44.scenes.append({"New", "AA==", 1, {}});
+        QVERIFY(settings.save());
+        Settings reloaded;
+        reloaded.setPath(path);
+        QVERIFY(reloaded.load());
+        QCOMPARE(reloaded.ur44.scenes[0].loopback, -1);
+        QCOMPARE(reloaded.ur44.scenes[1].loopback, 1);
+    }
+
     void save_keepsUnknownKeys()
     {
         QString path = newPath();

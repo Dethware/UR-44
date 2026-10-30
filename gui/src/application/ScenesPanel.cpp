@@ -28,7 +28,7 @@ ScenesPanel::ScenesPanel(Device* device, QWidget* parent) : QWidget(parent), m_d
     layout->addWidget(Widgets::caption(tr("SCENES"), this));
 
     m_list = new QListWidget(this);
-    m_list->setToolTip(tr("Prepared scenes: the mixer and effect settings. Double-click to recall."));
+    m_list->setToolTip(tr("Prepared scenes: the mixer and effect settings, and loopback. Double-click to recall."));
     connect(m_list, &QListWidget::itemActivated, this, [this](QListWidgetItem* item) { recall(m_list->row(item)); });
     connect(m_list, &QListWidget::currentRowChanged, this, &ScenesPanel::updateButtons);
     layout->addWidget(m_list, 1);
@@ -127,6 +127,11 @@ void ScenesPanel::recall(int index)
         QMessageBox::warning(this, tr("Recall Scene"), tr("Couldn't recall \"%1\": %2").arg(scene.name, error));
         return;
     }
+    // loopback isn't part of the device's scene: set it after (it waits behind the scene's bulk write)
+    if (scene.loopback >= 0)
+    {
+        m_device->setParameter("PatchLoopbackMode", 0, scene.loopback);
+    }
     m_active = index;
     reload();
 }
@@ -146,6 +151,7 @@ void ScenesPanel::store()
         return;
     }
     scene.data = QString::fromLatin1(data.toBase64());
+    scene.loopback = m_device->value("PatchLoopbackMode").value_or(-1);
     m_active = index;
     save();
 }
@@ -165,7 +171,8 @@ void ScenesPanel::storeAs()
     {
         return;
     }
-    APPLICATION->settings.ur44.scenes.append({name, QString::fromLatin1(data.toBase64()), {}});
+    APPLICATION->settings.ur44.scenes.append(
+        {name, QString::fromLatin1(data.toBase64()), m_device->value("PatchLoopbackMode").value_or(-1), {}});
     m_active = int(APPLICATION->settings.ur44.scenes.size()) - 1;
     save();
     m_list->setCurrentRow(m_active);
@@ -271,7 +278,8 @@ void ScenesPanel::importFile()
     for (const UR44::Scene& scene : std::as_const(scenes->scenes))
     {
         QString name = scene.name.trimmed().isEmpty() ? QFileInfo(path).completeBaseName() : scene.name;
-        APPLICATION->settings.ur44.scenes.append({name, QString::fromLatin1(scene.data.toBase64()), {}});
+        // dspMixFx's scenes don't have the loopback setting
+        APPLICATION->settings.ur44.scenes.append({name, QString::fromLatin1(scene.data.toBase64()), -1, {}});
     }
     save();
     QMessageBox::information(this, tr("Import dspMixFx Scenes"),

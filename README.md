@@ -12,7 +12,7 @@ Both class-compliant and non-class-compliant modes of the device are supported.
 The main window is partially implemented:
 
 * The main mix area has all the controls of the original, including linking input pairs as stereo pairs.
-* The right panel allows saving and applying any number of 'Scenes' - the full mixer and effects state.
+* The right panel allows saving and applying any number of 'Scenes' - the full mixer and effects state, and loopback.
   * Import and export of original dspMixFx scene files (.UR44) is also there, but needs testing.
 
 The effect editors are also implemented, including their graph representation:
